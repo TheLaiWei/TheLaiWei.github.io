@@ -27,11 +27,9 @@ latest_posts:
 
 ## About
 
-**Lai Wei** is a biomedical and mechanical engineer currently pursuing his Ph.D. in the BioMEMS & Single Molecule Dynamics Laboratory at Johns Hopkins University, led by Dr. Tza-Huei (Jeff) Wang. His doctoral research focuses on the development of advanced **biosensing and medical diagnostic platforms** through the integration of microfluidics, BioMEMS, and optical technologies. In particular, his work aims to enable high-resolution and single-cell analysis for rapid, precise, and quantitative molecular detection.
+**Lai Wei** is a biomedical and mechanical engineer currently pursuing his Ph.D. in the BioMEMS & Single Molecule Dynamics Laboratory at Johns Hopkins University, led by Dr. Tza-Huei (Jeff) Wang. His doctoral research focuses on the development of advanced **biosensing and medical diagnostic platforms** through the integration of microfluidics, BioMEMS, and optical technologies. In particular, his work aims to enable high-resolution and single-cell analysis for rapid, precise, and quantitative molecular detection. 
 
 Lai Wei received his bachelor’s degree in biomedical engineering from The George Washington University, where he conducted research in the Microfluidics and Biosensors Laboratory under the mentorship of Dr. Zhenyu Li. His undergraduate research centered on **microfluidics-enabled bioreactors** for cardiovascular tissue engineering and biofilm studies.
-
-His technical expertise centers on **laser optics system design and construction**, **microfluidics and microfabrication**, and advanced **3D CAD (Fusion and SolidWorks)**. He has hands-on experience in optical system integration, computational fluid dynamics (CFD), wet-laboratory experimentation, and clinical sample handling in translational research environments. By combining optical instrumentation with microscale bioengineering, he designs and implements integrated platforms for quantitative molecular and single-cell diagnostics.
 
 ---
 
