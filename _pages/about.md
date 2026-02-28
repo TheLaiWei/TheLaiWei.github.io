@@ -2,16 +2,16 @@
 layout: about
 title: about
 permalink: /
-subtitle: <a href='#'>Affiliations</a>. Address. Contacts. Motto. Etc.
+subtitle: <a href='#'>Johns Hopkins University</a>. Ph.D. Candidate | Optical Systems & Single-Cell Spectroscopy
 
 profile:
   align: right
   image: prof_pic.jpg
   image_circular: false # crops the image to make it circular
   more_info: >
-    <p>555 your office number</p>
-    <p>123 your address street</p>
-    <p>Your City, State 12345</p>
+    <p>Clark Hall 207</p>
+    <p>3400 N. Charles St</p>
+    <p>Baltimore, MD 21218</p>
 
 selected_papers: false # includes a list of papers marked as "selected={true}"
 social: false # includes social icons at the bottom of the page
@@ -24,8 +24,6 @@ latest_posts:
 
 ---
 
-Write your biography here. Tell the world about yourself. Link to your favorite [subreddit](https://www.reddit.com). You can put a picture in, too. The code is already in, just name your picture `prof_pic.jpg` and put it in the `img/` folder.
-
-Put your address / P.O. box / other info right below your picture. You can also disable any of these elements by editing `profile` property of the YAML header of your `_pages/about.md`. Edit `_bibliography/papers.bib` and Jekyll will render your [publications page](/al-folio/publications/) automatically.
-
-Link to your social media connections, too. This theme is set up to use [Font Awesome icons](https://fontawesome.com/) and [Academicons](https://jpswalsh.github.io/academicons/), like the ones below. Add your Facebook, Twitter, LinkedIn, Google Scholar, or just disable all of them.
+**Lai Wei** is a biomedical and mechanical engineer currently pursuing his Ph.D. in the BioMEMS & Single Molecule Dynamics Laboratory at Johns Hopkins University, led by Dr. Tza-Huei (Jeff) Wang. His doctoral research focuses on the development of advanced **biosensing and medical diagnostic platforms** through the integration of microfluidics, BioMEMS, and optical technologies. In particular, his work aims to enable high-resolution and single-cell analysis for rapid, precise, and quantitative molecular detection. By combining microscale engineering with optical instrumentation, he seeks to advance next-generation diagnostic systems that improve sensitivity, speed, and translational potential in clinical applications.
+Lai Wei received his bachelor’s degree in biomedical engineering from The George Washington University, where he conducted research in the Microfluidics and Biosensors Laboratory under the mentorship of Dr. Zhenyu Li. His undergraduate research centered on **microfluidics-enabled bioreactors** for cardiovascular tissue engineering and biofilm studies. Through the design and fabrication of microfluidic platforms, he investigated cellular microenvironments and dynamic culture conditions to better model physiological systems.
+In addition to his research contributions, Lai Wei has developed strong interdisciplinary expertise spanning laser optics system design and construction, microfluidics and microfabrication, computer-aided design (CAD), rapid prototyping, and wet-laboratory experimentation. He has hands-on experience integrating optical components, designing and fabricating microscale devices, performing computational fluid dynamics (CFD) simulations, and handling clinical samples in translational research settings. His technical breadth enables him to bridge engineering design, experimental validation, and real-world biomedical application, allowing him to build complete systems from conceptual design to functional implementation.
