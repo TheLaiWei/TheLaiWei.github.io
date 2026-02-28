@@ -10,7 +10,7 @@ profile:
   image_circular: false # crops the image to make it circular
   more_info: >
       <p><strong>Contact</strong></p>
-      <p><a href="mailto:lwei27@jhu.edu">lwei27@jhu.edu</a></p>
+      <p><a href="mailto:lwei27@jhu.edu" style="color:#1a73e8;">lwei27@jhu.edu</a></p>
       <p>
         <a href="https://scholar.google.com/citations?user=qcJTrn4AAAAJ&hl=en" target="_blank" rel="noopener noreferrer">Scholar</a> |
         <a href="https://www.linkedin.com/in/lai-wei-a61903347/" target="_blank" rel="noopener noreferrer">LinkedIn</a> |
