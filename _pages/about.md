@@ -2,7 +2,8 @@
 layout: about
 title: about
 permalink: /
-subtitle: <a href='#'>Johns Hopkins University</a>. Ph.D. Candidate | Optical Systems & Single-Cell Spectroscopy
+subtitle: Ph.D. Candidate
+          Johns Hopkins University
 
 profile:
   align: right
