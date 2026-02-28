@@ -33,7 +33,7 @@ latest_posts:
 
 Lai Wei received his bachelor’s degree in biomedical engineering from The George Washington University, where he conducted research in the Microfluidics and Biosensors Laboratory under the mentorship of Dr. Zhenyu Li. His undergraduate research centered on **microfluidics-enabled bioreactors** for cardiovascular tissue engineering and biofilm studies.
 
-<br><br><br><br><br><br>
+<br><br><br><br>
 
 ## Publications Section Under Construction {#publications}
 
