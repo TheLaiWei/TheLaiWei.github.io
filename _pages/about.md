@@ -2,8 +2,7 @@
 layout: about
 title: about
 permalink: /
-subtitle: Ph.D. Candidate
-          Johns Hopkins University
+subtitle: Ph.D. Candidate | Johns Hopkins University
 
 profile:
   align: right
