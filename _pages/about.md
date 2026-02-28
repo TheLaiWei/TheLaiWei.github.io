@@ -9,9 +9,13 @@ profile:
   image: IMG_1368.jpg
   image_circular: false # crops the image to make it circular
   more_info: >
-    <p>Clark Hall 207</p>
-    <p>3400 N. Charles St</p>
-    <p>Baltimore, MD 21218</p>
+      <p><strong>Contact</strong></p>
+      <p><a href="mailto:lwei27@jhu.edu">lwei27@jhu.edu</a></p>
+      <p>
+        <a href="https://scholar.google.com/citations?user=qcJTrn4AAAAJ&hl=en" target="_blank" rel="noopener noreferrer">Scholar</a> |
+        <a href="https://www.linkedin.com/in/lai-wei-a61903347/" target="_blank" rel="noopener noreferrer">LinkedIn</a> |
+        <a href="/assets/pdf/CV.pdf" target="_blank">CV</a>
+      </p>
 
 selected_papers: false # includes a list of papers marked as "selected={true}"
 social: false # includes social icons at the bottom of the page
