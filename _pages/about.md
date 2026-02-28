@@ -14,13 +14,13 @@ profile:
     <p>Your City, State 12345</p>
 
 selected_papers: false # includes a list of papers marked as "selected={true}"
-social: true # includes social icons at the bottom of the page
+social: false # includes social icons at the bottom of the page
 
 announcements:
   enabled: false # includes a list of news items
 
 latest_posts:
-  enabled: true
+  enabled: false
 
 ---
 
