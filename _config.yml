@@ -2,25 +2,24 @@
 # Site settings
 # -----------------------------------------------------------------------------
 
-title: blank # the website title (if blank, full name will be used instead)
-first_name: You
-middle_name: R.
-last_name: Name
+title: Ph.D. Candidate # the website title (if blank, full name will be used instead)
+first_name: Lai
+middle_name:
+last_name: Wei
 contact_note: >
-  You can even add a little note about which of these is the best way to reach you.
+  weilaidivh@gmail.com  lwei27@jh.edu  +1 (202) 999 6311
 description: > # the ">" symbol means to ignore newlines until "footer_text:"
-  A simple, whitespace theme for academics. Based on [*folio](https://github.com/bogoli/-folio) design.
+  Biomedical Engineer  Mechanical Engineer
 footer_text: >
   Powered by <a href="https://jekyllrb.com/" target="_blank">Jekyll</a> with <a href="https://github.com/alshedivat/al-folio">al-folio</a> theme.
   Hosted by <a href="https://pages.github.com/" target="_blank">GitHub Pages</a>.
-  Photos from <a href="https://unsplash.com" target="_blank">Unsplash</a>.
-keywords: jekyll, jekyll-theme, academic-website, portfolio-website # add your own keywords or leave empty
+keywords: BME ME microfluidics photonics etc (will update)# add your own keywords or leave empty
 lang: en # the language of your site (for example: en, fr, cn, ru, etc.)
 icon: ⚛️ # the emoji used as the favicon (alternatively, provide image name in /assets/img/)
 
-url: https://alshedivat.github.io # the base hostname & protocol for your site
-baseurl: /al-folio # the subpath of your site, e.g. /blog/. Leave blank for root
-last_updated: false # set to true if you want to display last updated in the footer
+url: https://TheLaiWei.github.io # the base hostname & protocol for your site
+baseurl: /# the subpath of your site, e.g. /blog/. Leave blank for root
+last_updated: ture # set to true if you want to display last updated in the footer
 impressum_path: # set to path to include impressum link in the footer, use the same path as permalink in a page, helps to conform with EU GDPR
 back_to_top: true # set to false to disable the back to top button
 
@@ -39,9 +38,9 @@ repo_trophies:
 # External service URLs for repository page
 # To use a different instance or service for displaying GitHub stats and trophies,
 # update these URLs. These are used in the repository templates.
-external_services:
-  github_readme_stats_url: https://github-readme-stats.vercel.app
-  github_profile_trophy_url: https://github-profile-trophy.vercel.app
+#external_services:
+#  github_readme_stats_url: https://github-readme-stats.vercel.app
+#  github_profile_trophy_url: https://github-profile-trophy.vercel.app
 
 # -----------------------------------------------------------------------------
 # RSS Feed
@@ -68,9 +67,9 @@ max_width: 930px
 # -----------------------------------------------------------------------------
 # Display links to the page with a preview object on social media.
 # see https://schema.org/docs/faq.html for more information
-serve_og_meta: false # Include Open Graph meta tags in the HTML head
-serve_schema_org: false # Include Schema.org in the HTML head
-og_image: # The site-wide (default for all links) Open Graph preview image
+#serve_og_meta: false # Include Open Graph meta tags in the HTML head
+#serve_schema_org: false # Include Schema.org in the HTML head
+#og_image:  #The site-wide (default for all links) Open Graph preview image
 
 # -----------------------------------------------------------------------------
 # Analytics and search engine verification
@@ -91,18 +90,18 @@ bing_site_verification: # out your bing-site-verification ID (Bing Webmaster)
 # Blog
 # -----------------------------------------------------------------------------
 
-blog_name: al-folio # blog_name will be displayed in your blog page
-blog_description: a simple whitespace theme for academics
-permalink: /blog/:year/:title/
-lsi: false # produce an index for related posts
-
-# Pagination
-pagination:
-  enabled: true
-
-related_blog_posts:
-  enabled: true
-  max_related: 5
+#blog_name: al-folio # blog_name will be displayed in your blog page
+#blog_description: a simple whitespace theme for academics
+#permalink: /blog/:year/:title/
+#lsi: false # produce an index for related posts
+#
+## Pagination
+#pagination:
+#  enabled: true
+#
+#related_blog_posts:
+#  enabled: true
+#  max_related: 5
 
 # Giscus comments (RECOMMENDED)
 # Follow instructions on https://giscus.app/ to setup for your repo to fill out the information below.
@@ -119,10 +118,6 @@ giscus:
   light_theme: light # name of the light color scheme (preferred works well with al-folio light mode)
   emit_metadata: 0
   lang: en
-
-# Disqus comments (DEPRECATED)
-disqus_shortname: al-folio # put your disqus shortname
-# https://help.disqus.com/en/articles/1717111-what-s-a-shortname
 
 # External sources.
 # If you have blog posts published on medium.com or other external sources,
@@ -144,10 +139,10 @@ external_sources:
 # Newsletter
 # -----------------------------------------------------------------------------
 
-newsletter:
-  enabled: false
-  endpoint: # your loops endpoint (e.g., https://app.loops.so/api/newsletter-form/YOUR-ENDPOINT)
-  # https://loops.so/docs/forms/custom-form
+#newsletter:
+#  enabled: false
+#  endpoint: # your loops endpoint (e.g., https://app.loops.so/api/newsletter-form/YOUR-ENDPOINT)
+#  # https://loops.so/docs/forms/custom-form
 
 # -----------------------------------------------------------------------------
 # Collections
