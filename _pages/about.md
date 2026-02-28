@@ -7,7 +7,7 @@ subtitle: Ph.D. Candidate
 
 profile:
   align: right
-  image: prof_pic.jpg
+  image: IMG_1368 2.jpg
   image_circular: false # crops the image to make it circular
   more_info: >
     <p>Clark Hall 207</p>

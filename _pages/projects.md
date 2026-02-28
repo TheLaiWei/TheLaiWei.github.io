@@ -1,6 +1,6 @@
 ---
 layout: page
-title: projects
+title: This Site Is Under Construction
 permalink: /projects/
 description: A growing collection of your cool projects.
 nav: true
