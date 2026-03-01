@@ -14,7 +14,7 @@ profile:
       <p>
         <a href="https://scholar.google.com/citations?user=qcJTrn4AAAAJ&hl=en" target="_blank" rel="noopener noreferrer">Scholar</a> |
         <a href="https://www.linkedin.com/in/lai-wei-a61903347/" target="_blank" rel="noopener noreferrer">LinkedIn</a> |
-        <a href="/assets/pdf/CV.pdf" target="_blank">CV</a>
+        <a href="/assets/pdf/Lai_Wei_Resume.pdf" target="_blank">CV</a>
       </p>
 
 selected_papers: false # includes a list of papers marked as "selected={true}"
