@@ -35,7 +35,7 @@ Lai Wei received his bachelor’s degree in biomedical engineering from The Geor
 
 <br><br><br><br>
 
-## Publications Section Under Construction {#publications}
+## Publications {#publications}
 
 <div class="publications">
 {% bibliography %}
