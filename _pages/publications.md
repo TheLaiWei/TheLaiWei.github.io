@@ -12,16 +12,6 @@ nav_order: 2
 {% include bib_search.liquid %}
 
 <div class="publications">
-
-  <h2>Selected Publications</h2>
-  <p>
-    <strong>•</strong> First/Co-First Author<br>
-    <strong>•</strong> Major platform contributions
-  </p>
-
-  {% bibliography --query @*[selected=true] %}
-
-  <hr>
   
   <h2>Patents</h2>
 
