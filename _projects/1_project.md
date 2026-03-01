@@ -2,7 +2,7 @@
 layout: page
 title: Test optics/photonics
 description: LIF and MOPICS
-img: assets/img/PDMSMOPICS.png
+img: assets/img/12.jpg
 importance: 1
 category: work
 related_publications: true
