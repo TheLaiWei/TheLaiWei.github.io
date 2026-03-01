@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Patent and Publications 
+title: Projects Section Under Construction
 permalink: /projects/
 description: A growing collection of your cool projects.
 nav: true
