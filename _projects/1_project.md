@@ -8,9 +8,10 @@ category: work
 related_publications: true
 ---
 
-Nest Few Sections: Hight Throughput bioreactor, point of care diagnosis, 
+Next Few Sections: Hight Throughput bioreactor, point of care diagnosis, 
 
-My research lies at the intersection of biomedical engineering and photonics, where I develop advanced optical biosensing platforms for rapid, single-cell microbial analysis. By integrating multi-wavelength laser excitation, light-sheet illumination, and hyperspectral fluorescence detection with microfluidic control, I engineer systems capable of resolving molecular, metabolic, and structural signatures at the single-bacterium level. My work focuses on optimizing optical geometries, spectral separation strategies, detector configurations (e.g., APDs and spectrometers), and signal-to-noise performance to enable sensitive, wash-free molecular assays and rapid phenotypic characterization.
+My Biomedical Photonics related research lies at the intersection of biomedical engineering and photonics, where I develop advanced optical biosensing platforms for rapid, single-cell microbial analysis. By integrating multi-wavelength laser excitation, light-sheet illumination, and hyperspectral fluorescence detection with microfluidic control, I engineer systems capable of resolving molecular, metabolic, and structural signatures at the single-bacterium level. My work focuses on optimizing optical geometries, spectral separation strategies, detector configurations (e.g., APDs and spectrometers), and signal-to-noise performance to enable sensitive, wash-free molecular assays and rapid phenotypic characterization.
+
 Through platforms such as multi-parametric oblique-plane illumination spectroscopy and microfluidic-assisted fluorescence in situ hybridization systems, I aim to accelerate pathogen identification and antimicrobial susceptibility testing directly from clinical samples. By combining photonic instrumentation design with molecular probe chemistry and microfluidic engineering, my research advances real-time, high-content optical diagnostics that bridge fundamental biophotonics and translational medical applications.
 
 Every project has a beautiful feature showcase page.
