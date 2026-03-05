@@ -23,9 +23,9 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/projects/";
           },
-        },{id: "projects-test-optics-photonics",
-          title: 'Test optics/photonics',
-          description: "LIF and MOPICS",
+        },{id: "projects-biomedical-photonics",
+          title: 'Biomedical Photonics',
+          description: "LIF, MOPICS, Sanning Spectroscopy",
           section: "Projects",handler: () => {
               window.location.href = "/projects/1_project.html";
             },},{id: "projects-project-2",
