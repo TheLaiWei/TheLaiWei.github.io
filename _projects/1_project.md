@@ -35,51 +35,14 @@ Left to right: (1) A PDMS microfluidic chip integrated with the MOPICS platform 
 (a) Single-cell-resolution 3 channel laser-induced fluorescence (LIF) detection system with its optical component layout shown. (b) Microfluidic detection chip made of polydimethylsiloxane (PDMS) on a glass cover slip (c) Microfluidic detection chip placed on the LIF system to be detected.
 </div>
 
-Related Publications:
 
-@article{wei2024swiftfish,
-  title   = {Rapid Bacteria Identification and Antimicrobial Susceptibility Testing via 5-Min Fluorescence In Situ Hybridization},
-  author  = {Wei, Lai and Shao, Fangchi and Dharmasena, Sayuni and Li, Sixuan and Yang, Jiyuan and Mirmiran, Arman and Zhang, Pengfei and Lewis, Shawna and Carroll, Karen C. and Hsieh, Kuangwen and Wang, Tza-Huei},
-  journal = {Small},
-  year    = {2025},
-  doi     = {10.1002/smll.202510292},
-  abbr    = {Small},
-  preview = {SWIFTFISH-Bugs.png},
-  bibtex_show = {true},
-  selected = {true}
-}
+**Related Publication**
 
-@inproceedings{wei2025MDLIF,
-  title   = {Multidimensional laser induced fluorescent and microfluidic-valve-system-based combinational antibiotics susceptibility screening and sub-5 minute pathogen identification},
-  author  = {Wei, Lai and Dharmasena, Sayuni and Shao, Fangchi and Li, Sixuan and Yang, Jiyuan and Mirmiran, Arman and Hsieh, Kuangwen and Wang, Jeff Tza-Huei},
-  booktitle = {Microfluidics, BioMEMS, and Medical Microsystems XXIII},
-  year    = {2025},
-  volume  = {13312},
-  pages   = {6--10},
-  publisher = {SPIE},
-  month   = {3},
-  doi     = {10.1117/12.3046251},
-  abbr    = {SPIE BioMEMS},
-  preview = {SWIFTFISH-LIF.png},
-  bibtex_show = {true},
-  selected = {true}
-}
+{% bibliography --query @*[key=wei2024swiftfish] %}
 
-@article{li2024SPscChromatography,
-  title   = {Single-particle spectroscopic chromatography reveals heterogeneous RNA loading and size correlations in lipid nanoparticles},
-  author  = {Li, Sixuan and Hu, Yizong and Lin, Jinghan and Schneiderman, Zachary and Shao, Fangchi and Wei, Lai and Li, Andrew and Hsieh, Kuangwen and Kokkoli, Efrosini and Curk, Tine and Mao, Hai-Quan and Wang, Tza-Huei},
-  journal = {ACS Nano},
-  year    = {2024},
-  volume  = {18},
-  number  = {24},
-  pages   = {15729--15743},
-  publisher = {American Chemical Society},
-  month   = {6},
-  doi     = {10.1021/acsnano.4c04623},
-  abbr    = {ACS Nano},
-  preview = {SixuanACSNANO.png},
-  bibtex_show = {true}
-}
+{% bibliography --query @*[key=wei2025MDLIF] %}
+
+{% bibliography --query @*[key=li2024SPscChromatography] %}
 
 
 {% endraw %}
