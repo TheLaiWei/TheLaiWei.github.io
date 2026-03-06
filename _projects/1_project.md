@@ -1,31 +1,16 @@
 ---
 layout: page
 title: Biomedical Photonics
-description: LIF, MOPICS, Sanning Spectroscopy
-img: assets/img/PDMSMOPICS.png
+description: Laser-based hyperspectral optical systems for rapid microbial diagnostics.
+img: assets/img/SWIFTFISH-LIF.png
 importance: 1
 category: work
 related_publications: true
 ---
 
-Next Few Sections: Hight Throughput bioreactor, point of care diagnosis, 
-
 My Biomedical Photonics related research lies at the intersection of biomedical engineering and photonics, where I develop advanced optical biosensing platforms for rapid, single-cell microbial analysis. By integrating multi-wavelength laser excitation, light-sheet illumination, and hyperspectral fluorescence detection with microfluidic control, I engineer systems capable of resolving molecular, metabolic, and structural signatures at the single-bacterium level. My work focuses on optimizing optical geometries, spectral separation strategies, detector configurations (e.g., APDs and spectrometers), and signal-to-noise performance to enable sensitive, wash-free molecular assays and rapid phenotypic characterization.
 
-Through platforms such as multi-parametric oblique-plane illumination spectroscopy and microfluidic-assisted fluorescence in situ hybridization systems, I aim to accelerate pathogen identification and antimicrobial susceptibility testing directly from clinical samples. By combining photonic instrumentation design with molecular probe chemistry and microfluidic engineering, my research advances real-time, high-content optical diagnostics that bridge fundamental biophotonics and translational medical applications.
-
-Every project has a beautiful feature showcase page.
-It's easy to include images in a flexible 3-column grid format.
-Make your photos 1/3, 2/3, or full width.
-
-To give your project a background in the portfolio page, just add the img tag to the front matter like so:
-
-    ---
-    layout: page
-    title: project
-    description: a project with a background image
-    img: /assets/img/12.jpg
-    ---
+Through platforms such as Multiparametric Oblique-Plane Illumination Confocal Spectroscopy (MOPICS) and single cell resoultion multi-channel Laser Induced Fluorescent (LIF) detection system, I aim to accelerate pathogen identification and antimicrobial susceptibility testing directly from clinical samples. By combining photonic instrumentation design with molecular probe chemistry and microfluidic engineering, my research advances real-time, high-content optical diagnostics that bridge fundamental biophotonics and translational medical applications.
 
 <div class="row">
     <div class="col-sm mt-3 mt-md-0">
@@ -43,11 +28,11 @@ To give your project a background in the portfolio page, just add the img tag to
 </div>
 <div class="row">
     <div class="col-sm mt-3 mt-md-0">
-        {% include figure.liquid loading="eager" path="assets/img/5.jpg" title="example image" class="img-fluid rounded z-depth-1" %}
+        {% include figure.liquid loading="eager" path="assets/img/SWIFTFISH_LIF.png" title="LIF" class="img-fluid rounded z-depth-1" %}
     </div>
 </div>
 <div class="caption">
-    This image can also have a caption. It's like magic.
+(a) Single-cell-resolution 3 channel laser-induced fluorescence (LIF) detection system with its optical component layout shown. (b) Microfluidic detection chip made of polydimethylsiloxane (PDMS) on a glass cover slip (c) Microfluidic detection chip placed on the LIF system to be detected.
 </div>
 
 You can also put regular text between your rows of images, even citations {% cite einstein1950meaning %}.
