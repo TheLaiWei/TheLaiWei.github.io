@@ -24,7 +24,7 @@ Through platforms such as Multiparametric Oblique-Plane Illumination Confocal Sp
     </div>
 </div>
 <div class="caption">
-    Caption photos easily. On the left, a road goes through a tunnel. Middle, leaves artistically fall in a hipster photoshoot. Right, in another hipster photoshoot, a lumberjack grasps a handful of pine needles.
+Left to right: (1) A PDMS microfluidic chip integrated with the MOPICS platform and excited by an oblique light sheet for single-cell hyperspectral measurements; (2) a close-up of the dual-objective orthogonal laser-excitation spectroscopy system used for high-resolution optical detection; and (3) a 96-well plate interrogated by the laser-induced fluorescence (LIF) platform for high-throughput phenotypic assays.
 </div>
 <div class="row">
     <div class="col-sm mt-3 mt-md-0">
@@ -35,38 +35,51 @@ Through platforms such as Multiparametric Oblique-Plane Illumination Confocal Sp
 (a) Single-cell-resolution 3 channel laser-induced fluorescence (LIF) detection system with its optical component layout shown. (b) Microfluidic detection chip made of polydimethylsiloxane (PDMS) on a glass cover slip (c) Microfluidic detection chip placed on the LIF system to be detected.
 </div>
 
-You can also put regular text between your rows of images, even citations {% cite einstein1950meaning %}.
-Say you wanted to write a bit about your project before you posted the rest of the images.
-You describe how you toiled, sweated, _bled_ for your project, and then... you reveal its glory in the next row of images.
+Related Publications:
 
-<div class="row justify-content-sm-center">
-    <div class="col-sm-8 mt-3 mt-md-0">
-        {% include figure.liquid path="assets/img/6.jpg" title="example image" class="img-fluid rounded z-depth-1" %}
-    </div>
-    <div class="col-sm-4 mt-3 mt-md-0">
-        {% include figure.liquid path="assets/img/11.jpg" title="example image" class="img-fluid rounded z-depth-1" %}
-    </div>
-</div>
-<div class="caption">
-    You can also have artistically styled 2/3 + 1/3 images, like these.
-</div>
+@article{wei2024swiftfish,
+  title   = {Rapid Bacteria Identification and Antimicrobial Susceptibility Testing via 5-Min Fluorescence In Situ Hybridization},
+  author  = {Wei, Lai and Shao, Fangchi and Dharmasena, Sayuni and Li, Sixuan and Yang, Jiyuan and Mirmiran, Arman and Zhang, Pengfei and Lewis, Shawna and Carroll, Karen C. and Hsieh, Kuangwen and Wang, Tza-Huei},
+  journal = {Small},
+  year    = {2025},
+  doi     = {10.1002/smll.202510292},
+  abbr    = {Small},
+  preview = {SWIFTFISH-Bugs.png},
+  bibtex_show = {true},
+  selected = {true}
+}
 
-The code is simple.
-Just wrap your images with `<div class="col-sm">` and place them inside `<div class="row">` (read more about the <a href="https://getbootstrap.com/docs/4.4/layout/grid/">Bootstrap Grid</a> system).
-To make images responsive, add `img-fluid` class to each; for rounded corners and shadows use `rounded` and `z-depth-1` classes.
-Here's the code for the last row of images above:
+@inproceedings{wei2025MDLIF,
+  title   = {Multidimensional laser induced fluorescent and microfluidic-valve-system-based combinational antibiotics susceptibility screening and sub-5 minute pathogen identification},
+  author  = {Wei, Lai and Dharmasena, Sayuni and Shao, Fangchi and Li, Sixuan and Yang, Jiyuan and Mirmiran, Arman and Hsieh, Kuangwen and Wang, Jeff Tza-Huei},
+  booktitle = {Microfluidics, BioMEMS, and Medical Microsystems XXIII},
+  year    = {2025},
+  volume  = {13312},
+  pages   = {6--10},
+  publisher = {SPIE},
+  month   = {3},
+  doi     = {10.1117/12.3046251},
+  abbr    = {SPIE BioMEMS},
+  preview = {SWIFTFISH-LIF.png},
+  bibtex_show = {true},
+  selected = {true}
+}
 
-{% raw %}
+@article{li2024SPscChromatography,
+  title   = {Single-particle spectroscopic chromatography reveals heterogeneous RNA loading and size correlations in lipid nanoparticles},
+  author  = {Li, Sixuan and Hu, Yizong and Lin, Jinghan and Schneiderman, Zachary and Shao, Fangchi and Wei, Lai and Li, Andrew and Hsieh, Kuangwen and Kokkoli, Efrosini and Curk, Tine and Mao, Hai-Quan and Wang, Tza-Huei},
+  journal = {ACS Nano},
+  year    = {2024},
+  volume  = {18},
+  number  = {24},
+  pages   = {15729--15743},
+  publisher = {American Chemical Society},
+  month   = {6},
+  doi     = {10.1021/acsnano.4c04623},
+  abbr    = {ACS Nano},
+  preview = {SixuanACSNANO.png},
+  bibtex_show = {true}
+}
 
-```html
-<div class="row justify-content-sm-center">
-  <div class="col-sm-8 mt-3 mt-md-0">
-    {% include figure.liquid path="assets/img/6.jpg" title="example image" class="img-fluid rounded z-depth-1" %}
-  </div>
-  <div class="col-sm-4 mt-3 mt-md-0">
-    {% include figure.liquid path="assets/img/11.jpg" title="example image" class="img-fluid rounded z-depth-1" %}
-  </div>
-</div>
-```
 
 {% endraw %}
