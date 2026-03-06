@@ -28,9 +28,9 @@ ninja.data = [{
           description: "Laser-based hyperspectral optical systems for rapid microbial diagnostics.",
           section: "Projects",handler: () => {
               window.location.href = "/projects/1_project.html";
-            },},{id: "projects-project-2",
-          title: 'project 2',
-          description: "a project with a background image and giscus comments",
+            },},{id: "projects-high-throughput-bioreactor-perfusion-systems",
+          title: 'High-Throughput Bioreactor Perfusion Systems',
+          description: "Microfluidic perfusion bioreactor platforms for high-throughput, long-term cell and tissue culture in standard multiwell plate formats.",
           section: "Projects",handler: () => {
               window.location.href = "/projects/2_project.html";
             },},{id: "projects-project-3-with-very-long-name",
