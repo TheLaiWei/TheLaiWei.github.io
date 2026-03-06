@@ -25,7 +25,7 @@ ninja.data = [{
           },
         },{id: "projects-biomedical-photonics",
           title: 'Biomedical Photonics',
-          description: "LIF, MOPICS, Sanning Spectroscopy",
+          description: "Laser-based hyperspectral optical systems for rapid microbial diagnostics.",
           section: "Projects",handler: () => {
               window.location.href = "/projects/1_project.html";
             },},{id: "projects-project-2",
