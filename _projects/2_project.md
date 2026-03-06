@@ -13,7 +13,7 @@ Through the development of a microfluidics-enabled 96-well perfusion bioreactor 
 
 <div class="row">
     <div class="col-sm mt-3 mt-md-0">
-        {% include figure.liquid loading="eager" path="assets/img/Multilayer perfusion system.png" title="Multilayer perfusion system" class="img-fluid rounded z-depth-1" %}
+        {% include figure.liquid loading="eager" path="assets/img/multilayerperfusion.jpg" title="Multilayer perfusion system" class="img-fluid rounded z-depth-1" %}
     </div>
     <div class="col-sm mt-3 mt-md-0">
         {% include figure.liquid loading="eager" path="assets/img/PDMS Perfusion.png" title="PDMS Perfusion" class="img-fluid rounded z-depth-1" %}
@@ -31,7 +31,7 @@ Left to right: (1) A multilayer PMMA perfusion bioreactor system enabling automa
         {% include figure.liquid path="assets/img/Perfusion.jpg" title="Perfusion" class="img-fluid rounded z-depth-1" %}
     </div>
     <div class="col-sm-3 mt-3 mt-md-0">
-        {% include figure.liquid path="assets/img/multilayerperfusion.jpg" title="Evenflow Perfusion" class="img-fluid rounded z-depth-1" %}
+        {% include figure.liquid path="assets/img/Evenflow Perfusion.png" title="Evenflow Perfusion" class="img-fluid rounded z-depth-1" %}
     </div>
     <div class="col-sm-3 mt-3 mt-md-0">
         {% include figure.liquid path="assets/img/Evenglow SImulation.png" title="Simulation" class="img-fluid rounded z-depth-1" %}
