@@ -5,7 +5,6 @@ description: Laser-based hyperspectral optical systems for rapid microbial diagn
 img: assets/img/SWIFTFISH-LIF.png
 importance: 1
 category: work
-related_publications: true
 ---
 
 My Biomedical Photonics related research lies at the intersection of biomedical engineering and photonics, where I develop advanced optical biosensing platforms for rapid, single-cell microbial analysis. By integrating multi-wavelength laser excitation, light-sheet illumination, and hyperspectral fluorescence detection with microfluidic control, I engineer systems capable of resolving molecular, metabolic, and structural signatures at the single-bacterium level. My work focuses on optimizing optical geometries, spectral separation strategies, detector configurations (e.g., APDs and spectrometers), and signal-to-noise performance to enable sensitive, wash-free molecular assays and rapid phenotypic characterization.
