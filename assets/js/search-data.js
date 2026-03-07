@@ -38,8 +38,8 @@ ninja.data = [{
           description: "Rapid prototyping and miniaturization of handheld microfluidic point-of-care diagnostic platforms.",
           section: "Projects",handler: () => {
               window.location.href = "/projects/3_project.html";
-            },},{id: "projects-project-4",
-          title: 'project 4',
+            },},{id: "projects-machine-learning-assisted-diagnosis",
+          title: 'Machine Learning Assisted Diagnosis',
           description: "Machine Learning Assisted Diagnosis",
           section: "Projects",handler: () => {
               window.location.href = "/projects/4_project.html";
