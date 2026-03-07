@@ -1,6 +1,6 @@
 ---
 layout: page
-title: project 4
+title: Machine Learning Assisted Diagnosis
 description: Machine Learning Assisted Diagnosis
 img: assets/img/SWIFTFISH-ML.png
 importance: 4
