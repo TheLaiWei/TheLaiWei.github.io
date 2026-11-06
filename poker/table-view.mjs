@@ -13,8 +13,20 @@ export function card(c, hidden = false, slot = false) {
 
 // Paint at most eight discs, keeping the precise count visible independently.
 export function pile(value, count) {
-  const layers = Array.from({length: Math.min(8,count)}, () => '<i></i>').join('');
-  return '<span class="stack d' + value + '" aria-hidden="true">' + (count ? layers : '<i class="empty"></i>') + '<b>' + value + '</b></span>';
+  const visible = Math.min(8, count);
+  const depth = Math.max(0, visible - 1);
+  const faceY = 14;
+  const step = 2;
+  const height = 28 + step * depth;
+  // Draw back to front in one bounded image. No disc participates in flex layout.
+  const discs = [];
+  for (let i = depth; i >= 0; i--) {
+    discs.push(`<ellipse cx="42" cy="${faceY + step * i}" rx="40" ry="12"/>`);
+  }
+  return `<svg class="stack d${value}" viewBox="0 0 84 ${height}" aria-hidden="true" focusable="false">
+    <g opacity="${visible ? 1 : 0.25}">${discs.join('')}</g>
+    <text x="42" y="19">${value}</text>
+  </svg>`;
 }
 export function piles(bag) {
   return values.map((v,k) => bag[k] ? '<span class="bundle" aria-label="' + bag[k] + ' chips of ' + v + '">' + pile(v,bag[k]) + '<small>×' + bag[k] + '</small></span>' : '').join('');
