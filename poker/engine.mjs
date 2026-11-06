@@ -1,3 +1,4 @@
+import {startingBag,empty,take,combine,validBag,valueOf} from './chips.mjs';
 // Pure heads-up Hold'em rules. No DOM, networking, or storage dependencies.
 export const VERSION = 1;
 export const STREETS = ['preflop', 'flop', 'turn', 'river'];
@@ -72,13 +73,16 @@ export function newMatch({names=['Player 1','Player 2'],stack=2000,smallBlind=10
   demand(button===0 || button===1, 'Invalid button');
   demand(Array.isArray(names) && names.length===2 && names.every(n=>typeof n==='string' && n.trim().length>0 && n.trim().length<=20), 'Use two names of 1–20 characters');
   const s={version:VERSION,revision:0,hand:0,button:1-button,settings:{stack,smallBlind,bigBlind},total:stack*2,
-    players:names.map(name=>({name:name.trim(),stack,street:0,committed:0,hole:[],folded:false,acted:false})),
+    players:names.map(name=>({name:name.trim(),stack,wallet:startingBag(stack),wager:empty(),street:0,committed:0,hole:[],folded:false,acted:false})),
     phase:'complete',street:'preflop',turn:null,currentBet:0,minRaise:bigBlind,board:[],burn:[],deck:[],result:null,log:[]};
   return nextHand(s);
 }
 function log(s,message) {s.log.push(message);s.log=s.log.slice(-40);}
-function pay(s,i,amount) {
+function pay(s,i,amount,selection) {
   const p=s.players[i]; demand(integer(amount) && amount<=p.stack,'Insufficient chips');
+  const plan=selection ?? take(p.wallet,amount);
+  demand(validBag(plan.paid,amount) && validBag(plan.remaining,p.stack-amount),'Invalid staged chips');
+  p.wallet=[...plan.remaining];p.wager=combine(p.wager,plan.paid);
   p.stack-=amount;p.street+=amount;p.committed+=amount;
 }
 function draw(s) {demand(s.deck.length>0,'Deck exhausted');return s.deck.pop();}
@@ -86,6 +90,8 @@ function refund(s) {
   const a=s.players[0], b=s.players[1];
   if(a.committed===b.committed) return [0,0];
   const i=a.committed>b.committed?0:1, p=s.players[i], extra=Math.abs(a.committed-b.committed);
+  const change=take(p.wager,extra);
+  p.wallet=combine(p.wallet,change.paid);p.wager=change.remaining;
   p.stack+=extra;p.committed-=extra;p.street-=extra;
   log(s,`${p.name}: ${extra} uncalled returned`);
   const r=[0,0];r[i]=extra;return r;
@@ -99,7 +105,14 @@ function finish(s,foldWinner=null) {
     const cmp=compare(hands[0].score,hands[1].score); winners=cmp===0?[0,1]:[cmp>0?0:1];
   }
   const payouts=splitPot(pot,winners,s.button);
-  s.players.forEach((p,i)=>{p.stack+=payouts[i];p.committed=0;p.street=0;});
+  let pool=combine(s.players[0].wager,s.players[1].wager);
+  for(const i of winners) {
+    const award=take(pool,payouts[i]);
+    s.players[i].wallet=combine(s.players[i].wallet,award.paid);
+    pool=award.remaining;
+  }
+  demand(valueOf(pool)===0,'Unpaid pot');
+  s.players.forEach((p,i)=>{p.stack+=payouts[i];p.committed=0;p.street=0;p.wager=empty();});
   s.phase='complete';s.turn=null;s.currentBet=0;
   s.result={reason:foldWinner!==null?'fold':'showdown',pot,winners,payouts,returned,hands};
   log(s,winners.length===2?`Split pot: ${pot}`:`${s.players[winners[0]].name} wins ${pot}`);
@@ -153,20 +166,20 @@ export function legal(s,i) {
   const canRaise=active && opponent.stack>0 && maxTo>s.currentBet;
   return {active,owed,call,canCheck:active&&owed===0,canRaise,minTo,maxTo,canFullRaise:canRaise&&maxTo>=minTo};
 }
-export function act(state,i,type,to,expectedRevision=state.revision) {
+export function act(state,i,type,to,expectedRevision=state.revision,selection=null) {
   demand(expectedRevision===state.revision,'This action is stale');
   const l=legal(state,i);demand(l.active,'Wait for your turn');
   const s=clone(state),p=s.players[i];
   if(type==='fold') {p.folded=true;log(s,`${p.name} folds`);finish(s,1-i);}
   else {
     if(type==='check') {demand(l.canCheck,'You must call or fold');log(s,`${p.name} checks`);}
-    else if(type==='call') {demand(l.owed>0,'Nothing to call');pay(s,i,l.call);log(s,`${p.name} calls ${l.call}${p.stack===0?' · all-in':''}`);}
+    else if(type==='call') {demand(l.owed>0,'Nothing to call');pay(s,i,l.call,selection);log(s,`${p.name} calls ${l.call}${p.stack===0?' · all-in':''}`);}
     else if(type==='raise') {
       demand(l.canRaise && integer(to) && to>s.currentBet && to<=l.maxTo,'Invalid bet');
       demand(to>=l.minTo || to===l.maxTo,'Below the minimum raise');
       const increase=to-s.currentBet;
       if(increase>=s.minRaise) s.minRaise=increase;
-      pay(s,i,to-p.street);s.currentBet=to;s.players[1-i].acted=false;
+      pay(s,i,to-p.street,selection);s.currentBet=to;s.players[1-i].acted=false;
       log(s,`${p.name} ${state.currentBet===0?'bets':'raises to'} ${to}${p.stack===0?' · all-in':''}`);
     } else throw new Error('Unknown action');
     p.acted=true;s.turn=1-i;settle(s);
@@ -182,6 +195,7 @@ export function validateState(s) {
     demand(integer(s.settings.stack)&&s.settings.stack*2===s.total && integer(s.settings.smallBlind)&&s.settings.smallBlind>0 && integer(s.settings.bigBlind)&&s.settings.bigBlind>s.settings.smallBlind&&s.settings.bigBlind<=s.settings.stack,'Invalid settings');
     demand(Array.isArray(s.players)&&s.players.length===2,'Invalid players');
     for(const p of s.players) demand(typeof p.name==='string'&&p.name.trim().length>0&&p.name.length<=20 && ['stack','street','committed'].every(k=>integer(p[k])) && p.street<=p.committed && Array.isArray(p.hole)&&p.hole.length===2 && typeof p.folded==='boolean' && typeof p.acted==='boolean','Invalid player');
+    demand(s.players.every(p=>validBag(p.wallet,p.stack)&&validBag(p.wager,p.committed)),'Invalid chip inventory');
     demand(sum(s.players.map(p=>p.stack+p.committed))===s.total,'Chip conservation failed');
     demand(Array.isArray(s.board)&&s.board.length===[0,3,4,5][STREETS.indexOf(s.street)],'Invalid board');
     demand(Array.isArray(s.burn)&&s.burn.length===STREETS.indexOf(s.street)&&Array.isArray(s.deck),'Invalid deck');
