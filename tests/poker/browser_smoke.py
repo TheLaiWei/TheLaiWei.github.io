@@ -20,6 +20,34 @@ def preview_server():
 
 with preview_server() as url, sync_playwright() as p:
  b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH'),args=['--disable-dev-shm-usage'])
+ # Recreate low-blind racks from setup and check each painted disc and count,
+ # including the rotated seat, against its own touch target.
+ for buy_in in (200,400,2000):
+  rack=b.new_context(has_touch=True,is_mobile=True,viewport={'width':390,'height':760})
+  page=rack.new_page();page.goto(url)
+  page.locator('.settings summary').click()
+  for key,val in [('stack',buy_in),('small',1),('big',2)]:
+   page.locator(f'[name="{key}"]').fill(str(val))
+  page.locator('#start').click();page.locator('#table').wait_for()
+  assert page.locator('#pot-near').inner_text()=='3'
+  for width,height in [(390,760),(320,480)]:
+   page.set_viewport_size({'width':width,'height':height})
+   for seat in page.locator('.player').all():
+    buttons=seat.locator('.chip-button')
+    assert buttons.count()==4
+    value=0
+    for btn in buttons.all():
+     box=btn.bounding_box()
+     for part in btn.locator('ellipse,text,small').all():
+      r=part.bounding_box()
+      assert r['x']>=box['x']-1 and r['y']>=box['y']-1
+      assert r['x']+r['width']<=box['x']+box['width']+1
+      assert r['y']+r['height']<=box['y']+box['height']+1
+     count=int(btn.locator('small').inner_text().replace('×','').replace(',',''))
+     value+=count*int(btn.get_attribute('data-value'))
+    balance=int(seat.locator('.balance strong').inner_text().replace(',',''))
+    assert value==balance and balance in (buy_in-1,buy_in-2)
+  rack.close()
  ctx=b.new_context(viewport={'width':390,'height':760},has_touch=True,is_mobile=True,device_scale_factor=2)
  t=ctx.new_page(); errors=[]
  t.on('pageerror',lambda err:errors.append(str(err)))

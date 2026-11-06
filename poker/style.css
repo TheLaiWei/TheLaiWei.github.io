@@ -43,14 +43,12 @@
 .chip-button {flex-direction:column;justify-content:flex-end;gap:2px;border:0;background:none;height:clamp(42px,7.5dvh,65px)}
 .table .chip-button:disabled {opacity:.75}
 .chip-button small,.bundle small {font-size:10px;color:#ccc}
-.stack {--tone:#d4d4d5;position:relative;width:clamp(30px,8vw,44px);display:flex;flex-direction:column;align-items:stretch;isolation:isolate}
+/* The SVG scales as one graphic, including under Safari button layout. */
+.stack {--tone:#d4d4d5;display:block;min-width:0}
 .stack.d5{--tone:#c55a62}.stack.d25{--tone:#50977b}.stack.d100{--tone:#5784b0}
-.stack i {height:clamp(13px,2.4dvh,19px);border-radius:50%;background:var(--tone);border:1px solid #222;box-shadow:inset 0 -2px #0004}
-.stack i + i {margin-top:calc(-1 * clamp(13px,2.4dvh,19px) + 3px)}
-.stack i:first-of-type {position:relative;z-index:1;border:2px dashed #eee9}
-.stack b {position:absolute;z-index:2;inset:0 0 auto;text-align:center;line-height:clamp(13px,2.4dvh,19px);font-size:10px;color:#111}
-.stack .empty {opacity:.25}
-.bundle {gap:2px}.bundle .stack {width:22px}.bundle i {height:10px}.bundle i + i {margin-top:-8px}.bundle b {font-size:8px;line-height:10px}.bundle small {font-size:9px}
+.stack ellipse {fill:var(--tone);stroke:#222;stroke-width:1.5}
+.stack text {fill:#111;text-anchor:middle;font:700 15px Arial,sans-serif}
+.bundle {gap:2px}.bundle .stack {width:22px;height:14px}.bundle small {font-size:9px}
 .center {border-block:1px solid #333;padding:3px 0}.center-line {display:flex;align-items:center;justify-content:space-between;height:22px}
 .pot-label,.street-label {font-size:10px;letter-spacing:.05em;color:#aaa}.pot-label strong {font-size:14px;color:#fff}
 .menu-button {border:0;background:transparent;color:#ccc;width:35px}
@@ -79,10 +77,7 @@
 .center-line:has(#pot-piles) {height:auto;min-height:24px}
 .table .main-actions button {min-height:clamp(38px,6.6dvh,70px)!important;font-size:clamp(14px,3.9vw,22px)}
 .table .quick-actions button {height:clamp(29px,4.6dvh,47px);font-size:clamp(12px,3.2vw,18px)}
-.chip-button .stack {width:100%;max-width:86px;--disc:clamp(18px,3.2dvh,30px)}
-.chip-button .stack i {height:var(--disc)}
-.chip-button .stack i + i {margin-top:calc(2px - var(--disc))}
-.chip-button .stack b {font-size:clamp(12px,3.3vw,18px);line-height:var(--disc)}
+.chip-button .stack {width:100%;max-width:86px;height:auto;max-height:calc(100% - 16px);flex:none}
 .table .chip-button {padding:0 1px}
 .chip-button small {font-size:12px}
 @media(min-height:680px) and (orientation:portrait) {
@@ -94,7 +89,5 @@
 @media(max-height:590px) {
   .seat-right {gap:3px}
   .table .quick-actions button {height:25px;font-size:10px}
-  .chip-button .stack {--disc:15px}
-  .chip-button .stack i + i {margin-top:calc(2px - var(--disc))}
   .table .chip-button small {font-size:10px}
 }
