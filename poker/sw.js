@@ -1,6 +1,6 @@
 // Bump this version whenever any cached game asset changes.
-const CACHE='lai-poker-static-v2';
-const ASSETS=['./','./index.html','./style.css','./app.mjs','./engine.mjs','./session.mjs','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
+const CACHE='lai-poker-static-v4';
+const ASSETS=['./','./index.html','./style.css','./app.mjs','./engine.mjs','./session.mjs','./table-view.mjs','./chips.mjs','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('lai-poker-static-')&&key!==CACHE).map(key=>caches.delete(key))))));
 self.addEventListener('message',event=>{if(event.data?.type==='ACTIVATE')self.skipWaiting();});

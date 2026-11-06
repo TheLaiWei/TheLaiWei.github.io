@@ -1,3 +1,4 @@
+import {startingBag} from "../../poker/chips.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {newMatch,nextHand,act,legal,evaluate,compare,splitPot,validateState,shuffledDeck,cardLabel} from '../../poker/engine.mjs';
@@ -6,7 +7,7 @@ const hand=s=>s.split(' ').map(card);
 function deckWith(draws){return [...Array.from({length:52},(_,i)=>i).filter(i=>!draws.includes(i)),...draws.toReversed()];}
 function match(button=0){return newMatch({button});}
 function checkDown(s){while(s.phase==='playing'){const i=s.turn,l=legal(s,i);s=act(s,i,l.owed?'call':'check');}return s;}
-function stacks(a,b){let s=match();s=act(s,s.turn,'fold');s.players[0].stack=a;s.players[1].stack=b;s.total=a+b;s.settings.stack=(a+b)/2;return nextHand(s);}
+function stacks(a,b){let s=match();s=act(s,s.turn,'fold');s.players[0].stack=a;s.players[1].stack=b;s.players[0].wallet=startingBag(a);s.players[1].wallet=startingBag(b);s.total=a+b;s.settings.stack=(a+b)/2;return nextHand(s);}
 function assertValid(s){assert.equal(validateState(s),true,`invalid at hand ${s.hand} ${s.street} ${s.phase}`);}
 test('secure shuffle yields complete unique deck; names label cards',()=>{for(let n=0;n<10;n++){const d=shuffledDeck();assert.equal(new Set(d).size,52);assert.ok(d.every(c=>c>=0&&c<52));}assert.equal(cardLabel(12),'A♠');});
 test('settings reject invalid amounts and empty names',()=>{for(const options of [{stack:1},{smallBlind:0},{bigBlind:10},{stack:1.2},{names:['','B']},{bigBlind:3000}])assert.throws(()=>newMatch(options));});
