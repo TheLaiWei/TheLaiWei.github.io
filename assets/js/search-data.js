@@ -23,13 +23,6 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/projects/";
           },
-        },{id: "nav-games",
-          title: "Games",
-          description: "",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/games/";
-          },
         },{id: "projects-biomedical-photonics",
           title: 'Biomedical Photonics',
           description: "Laser-based hyperspectral optical systems for rapid microbial diagnostics.",
