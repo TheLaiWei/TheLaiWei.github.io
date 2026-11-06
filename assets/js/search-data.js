@@ -43,6 +43,11 @@ ninja.data = [{
           description: "Machine Learning Assisted Diagnosis",
           section: "Projects",handler: () => {
               window.location.href = "/projects/4_project.html";
+            },},{id: "projects-face-to-face-poker",
+          title: 'Face to Face Poker',
+          description: "Two people, one phone. A small heads-up Texas Hold’em game with virtual chips.",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/poker.html";
             },},{
         id: 'social-cv',
         title: 'CV',
