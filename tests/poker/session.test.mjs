@@ -1,0 +1,9 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {InteractionGate,saveGame,loadGame,SAVE_KEY} from '../../poker/session.mjs';
+import {newMatch} from '../../poker/engine.mjs';
+function memory(){const map=new Map();return {getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)};}
+test('save/resume round-trip preserves the full game but never peek or pending wager',()=>{const storage=memory(),s=newMatch();assert.equal(saveGame(storage,s),true);assert.deepEqual(loadGame(storage).state,s);assert.ok(!('peek' in loadGame(storage).state));assert.ok(!('pending' in loadGame(storage).state));});
+test('missing, corrupt, incompatible, and unavailable storage handled',()=>{const m=memory();assert.deepEqual(loadGame(m),{state:null});m.setItem(SAVE_KEY,'{');assert.equal(loadGame(m).state,null);m.setItem(SAVE_KEY,JSON.stringify({schema:999,state:newMatch()}));assert.equal(loadGame(m).state,null);assert.equal(saveGame({setItem(){throw Error();}},newMatch()),false);assert.ok(loadGame(null).error);});
+test('only one pointer/keyboard peek; unrelated pointer release cannot expose second hand',()=>{const g=new InteractionGate();assert.equal(g.beginPeek(0,12),true);assert.equal(g.beginPeek(1,13),false);assert.equal(g.canAct(0),false);assert.equal(g.endPeek(13),false);assert.equal(g.peek.player,0);assert.equal(g.endPeek(12),true);assert.equal(g.beginPeek(1,'keyboard'),true);g.pause();assert.equal(g.peek,null);assert.equal(g.beginPeek(0,99),false);g.resume();assert.equal(g.peek,null);assert.equal(g.canAct(100),true);});
+test('double-tap cooldown prevents consecutive commits; pause hides cards',()=>{const g=new InteractionGate();g.committed(100);assert.equal(g.canAct(499),false);assert.equal(g.canAct(500),true);g.beginPeek(0,5);g.pause();assert.equal(g.peek,null);assert.equal(g.canAct(600),false);});

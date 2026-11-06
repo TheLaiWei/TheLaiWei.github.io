@@ -1,0 +1,6 @@
+import {cpSync,mkdirSync,writeFileSync} from 'node:fs';
+mkdirSync('.poker-preview',{recursive:true});
+cpSync('poker','.poker-preview/poker',{recursive:true});
+writeFileSync('.poker-preview/index.html',`<!doctype html><html lang="en"><meta charset="utf-8"><title>Poker local preview</title><style>body{margin:0;background:#091c17;color:#ece6d2;font:14px system-ui;text-align:center}header{padding:10px}button,a{margin:0 8px;padding:6px;color:inherit;background:#204035;border:1px solid #567363;border-radius:5px}iframe{display:block;margin:auto;border:1px solid #526b5e;max-width:100%}p{font-size:11px}</style><header><a href="./poker/">Full page</a><button data-size="390,844">390 × 844</button><button data-size="375,667">375 × 667</button><button data-size="320,568">320 × 568</button><button data-size="667,375">Landscape</button></header><iframe title="Phone-sized poker preview" src="./poker/" width="390" height="844"></iframe><p>Local layout fixture only — not a physical iPhone or Safari test.</p><script src="./resize.js"></script></html>`);
+writeFileSync('.poker-preview/resize.js',`document.querySelectorAll('[data-size]').forEach(b=>b.addEventListener('click',()=>{const [w,h]=b.dataset.size.split(',');const f=document.querySelector('iframe');f.width=w;f.height=h;}));`);
+console.log('Static preview prepared in .poker-preview. Serve that directory locally.');
