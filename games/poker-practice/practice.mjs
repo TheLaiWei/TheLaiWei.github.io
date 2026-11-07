@@ -7,6 +7,7 @@ import {perspective,chooseAction,describeAction,reviewDecision} from './strategy
 const $=id=>document.getElementById(id);
 const key='lai-poker-practice:v1';
 let match=null, staged=null, timer, persistent=false, ready=false, lastMove=-Infinity;
+let revealedHand=null;
 const state=()=>match.state;
 function save() {
   if(!persistent) return;
@@ -37,7 +38,7 @@ function render() {
   $('opponents').innerHTML=s.players.slice(1).map((q,n)=>{
     const seat=n+1;
     const label=!q.hole.length?'Out':q.folded?'Folded':done?'':q.stack===0?'All-in':s.turn===seat?'Acting':'';
-    const reveal=done && s.result.reason==='showdown' && !q.folded;
+    const reveal=done && (revealedHand===s || (s.result.reason==='showdown' && !q.folded));
     const badges=[s.button===seat?'D':'',s.sb===seat?'SB':'',s.bb===seat?'BB':'',label].filter(Boolean).join(' · ');
     return `<section class="opponent" data-active="${!done && s.turn===seat}"><strong>${s.multi?`Bot ${seat}`:'Computer'}</strong><small>${badges}</small><span>${fmt(q.stack)} chips</span><div class="hand">${q.hole.map(c=>card(c,!reveal)).join('')}</div></section>`;
   }).join('');
@@ -69,6 +70,10 @@ function render() {
   } else $('awards').open=false;
   $('controls').hidden=done;
   $('finished').hidden=!done;
+  const inspect=$('inspect');
+  inspect.hidden=!done || !s.players.slice(1).some(q=>q.hole.length && (q.folded || s.result.reason!=='showdown'));
+  inspect.textContent=revealedHand===s?'Hide revealed cards':'Show opponents’ cards';
+  inspect.setAttribute('aria-pressed',String(revealedHand===s));
   $('next').textContent=(!p.stack || s.players.filter(q=>q.stack>0).length<2)?'New match':'Next hand';
   $('rack').innerHTML=VALUES.map((v,i)=>`<button data-chip="${v}" ${!turn||!plan.remaining[i]?'disabled':''} aria-label="Stage ${v} chips">${pile(v,plan.remaining[i])}<small>×${plan.remaining[i]}</small></button>`).join('');
   $('call').textContent=l.call?'Call '+fmt(l.call):'Check';
@@ -114,6 +119,11 @@ $('setup').onsubmit=e=>{
     if(match && !confirm('Replace this practice match with a new one?')) return;
     match={state:fresh,decisions:[]};staged=null;save();openTable();
   } catch(error) { $('status').textContent=error.message; }
+};
+$('inspect').onclick=()=>{
+  if(state().phase!=='complete') return;
+  revealedHand=revealedHand===state()?null:state();
+  render();
 };
 $('settings').onclick=setup;
 $('cancel').onclick=openTable;
