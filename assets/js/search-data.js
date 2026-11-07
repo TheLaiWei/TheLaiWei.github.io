@@ -48,6 +48,11 @@ ninja.data = [{
           description: "The original green-table heads-up poker game, designed for two people sharing one phone.",
           section: "Projects",handler: () => {
               window.location.href = "/projects/poker-classic.html";
+            },},{id: "projects-poker-practice",
+          title: 'Poker Practice',
+          description: "Play heads-up Texas Hold’em against a computer opponent and review your decisions after each hand.",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/poker-practice.html";
             },},{id: "projects-face-to-face-poker",
           title: 'Face to Face Poker',
           description: "Two people, one phone. A small heads-up Texas Hold’em game with virtual chips.",
