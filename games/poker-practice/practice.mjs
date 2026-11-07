@@ -65,7 +65,7 @@ function render() {
     const revision=s.revision;
     timer=setTimeout(()=>{
       if(state()!==s || state().revision!==revision || document.hidden) return;
-      const action=chooseAction(perspective(s,1));
+      const action=chooseAction(perspective(s,1,match.decisions));
       commit(1,action.type,action.to);
     },450);
   }

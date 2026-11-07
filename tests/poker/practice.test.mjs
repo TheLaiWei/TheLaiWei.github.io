@@ -37,3 +37,32 @@ test('opponent and human can play through complete legal practice hands',()=>{
     s=nextHand(s);
   }
 });
+test('postflop context follows public raises and the check on this street',()=>{
+  let state=newMatch({button:1,smallBlind:1,bigBlind:2});
+  state=act(state,1,'raise',5);state=act(state,0,'call');state=act(state,0,'check');
+  const history=[
+    {seat:1,street:'preflop',type:'raise',view:{ignoredPrivateData:true}},
+    {seat:0,street:'preflop',type:'call'},
+    {seat:0,street:'flop',type:'check'}
+  ];
+  const v=perspective(state,1,history);
+  assert.equal(v.initiative,true);
+  assert.equal(v.checkedTo,true);
+  assert.equal(v.raises,0);
+  assert.ok(!JSON.stringify(v).includes('ignoredPrivateData'));
+});
+
+test('button opens a mixed range and can still decline to raise',()=>{
+  let seed=98765;
+  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+  let opens=0;
+  const base=perspective(newMatch({button:1,smallBlind:1,bigBlind:2}),1);
+  for(let i=0;i<48;i++){
+    const first=Math.floor(random()*52);
+    let second=Math.floor(random()*51);
+    if(second>=first)second++;
+    const a=chooseAction({...base,hole:[first,second]},random);
+    if(a.type==='raise'){opens++;assert.equal(a.to,5);}
+  }
+  assert.ok(opens>=24 && opens<48,'Expected a wide, mixed button opening range');
+});
