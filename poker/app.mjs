@@ -3,10 +3,10 @@ import {card,piles,playerView,fmt} from './table-view.mjs';
 import {take,valueOf,combine,stageChip,resizePlan} from './chips.mjs';
 import {SAVE_KEY,loadGame,saveGame,InteractionGate} from './session.mjs';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const gate=new InteractionGate(), amounts=[[],[]];
+const gate=new InteractionGate(), plans=[null,null];
 let state=null,saved=null,ownsLock=false,releaseLock=null,ephemeral=false,storage=null,storageOK=true,paused=false,sound=false,audio=null,toastTimer,confirmation=null,workerRegistration=null;
 try {storage=window.localStorage;}catch{storageOK=false;}
-const stagedPlan=i=>amounts[i].at(-1) ?? take(state.players[i].wallet,0);
+const stagedPlan=i=>plans[i] ?? take(state.players[i].wallet,0);
 function toast(text){$('#toast').textContent=text;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,3200);}
 function status(text){$('#welcome-status').textContent=text;$('#save-status').textContent=text;}
 function persist(){
@@ -64,7 +64,7 @@ function render(){
   if(!state)return;
   $('#welcome').hidden=true;$('#table').hidden=false;
   renderPlayer(0);renderPlayer(1);
-  $('#board').innerHTML=Array.from({length:5},(_,n)=>n<state.board.length?card(state.board[n]):card(null,false,true)).join('');
+  $('#board').innerHTML=Array.from({length:5},(_,n)=>n<state.board.length?card(state.board[n],false,true):card(null,false,true)).join('');
   $('#pot-piles').innerHTML=piles(combine(state.players[0].wager,state.players[1].wager));
   const pot=state.phase==='complete'?state.result.pot:state.players.reduce((a,p)=>a+p.committed,0);
   for(const side of ['near','far']){$(`#pot-${side}`).textContent=fmt(pot);$(`#street-${side}`).textContent=`HAND ${state.hand} · ${state.phase==='complete'?'AWARDED':state.street.toUpperCase()}`;}
@@ -89,7 +89,7 @@ function stopPeek(source, restoreFocus=true){
   if(restoreFocus && focused) $(`[data-peek="${focused.dataset.peek}"][data-index="${focused.dataset.index}"]`)?.focus({preventScroll:true});
 }
 function pause(message='Ready when you both are.'){
-  gate.pause();amounts[0]=[];amounts[1]=[];paused=!!state;
+  gate.pause();plans.fill(null);paused=!!state;
   if(state){render();$('#pause-message').textContent=message;$('#pause').hidden=false;}
 }
 function openDialog(id){gate.pause();if(state)render();$(id).showModal();}
@@ -104,7 +104,7 @@ function freshSetup(){
 function requestFresh(){confirmAction('Start a fresh match?','This match stays saved until you deal the new one. Both players should agree.','Choose settings',freshSetup);}
 function start(options){
   if(!ownsLock)return toast('Close the game in the other tab first.');
-  try{state=newMatch(options);saved=null;amounts[0]=[];amounts[1]=[];gate.resume();persist();render();beep();}
+  try{state=newMatch(options);saved=null;plans.fill(null);gate.resume();persist();render();beep();}
   catch(e){$('#setup-error').textContent=e.message;}
 }
 $('#setup').addEventListener('submit',e=>{
@@ -115,7 +115,7 @@ $('#setup').addEventListener('submit',e=>{
 $('#resume-saved').addEventListener('click',()=>{
   if(!ownsLock)return;
   const latest=loadGame(storage);if(!latest.state){saved=null;load();return;}
-  state=latest.state;gate.resume();amounts[0]=[];amounts[1]=[];render();
+  state=latest.state;gate.resume();plans.fill(null);render();
 });
 $('#resume-play').addEventListener('click',()=>{
   if(!ownsLock){location.reload();return;}
@@ -135,22 +135,21 @@ function commit(i,type,to){
   const plan=stagedPlan(i);
   const amount=type==='raise'?to-state.players[i].street:legal(state,i).call;
   const selection=(type==='raise'||type==='call') ? resizePlan(plan,amount) : null;
-  state=act(state,i,type,to,revision,selection);gate.committed();amounts[0]=[];amounts[1]=[];persist();render();beep();
+  state=act(state,i,type,to,revision,selection);gate.committed();plans.fill(null);persist();render();beep();
 }
 $('#table').addEventListener('click',e=>{
-  const b=e.target.closest('[data-action]');if(!b||b.disabled||!ownsLock||!gate.canAct()||(e.detail>1&&!['chip','undo'].includes(b.dataset.action)))return;
+  const b=e.target.closest('[data-action]');if(!b||b.disabled||!ownsLock||!gate.canAct()||(e.detail>1&&b.dataset.action!=='chip'))return;
   const i=Number(b.dataset.player),action=b.dataset.action,l=legal(state,i);
   try{
     if(action==='new'){requestFresh();return;}
-    if(action==='next'){state=nextHand(state);gate.committed();amounts[0]=[];amounts[1]=[];persist();render();beep();return;}
+    if(action==='next'){state=nextHand(state);gate.committed();plans.fill(null);persist();render();beep();return;}
     if(!l.active)return;
-    if(action==='chip'){const v=Number(b.dataset.value);amounts[i].push(stageChip(stagedPlan(i),v));}
-    else if(action==='undo')amounts[i].pop();
-    else if(action==='clear')amounts[i]=[];
-    else if(action==='min')amounts[i].push(resizePlan(stagedPlan(i),l.minTo-state.players[i].street));
+    if(action==='chip'){const v=Number(b.dataset.value);plans[i]=stageChip(stagedPlan(i),v);}
+    else if(action==='clear')plans[i]=null;
+    else if(action==='min')plans[i]=resizePlan(stagedPlan(i),l.minTo-state.players[i].street);
     else if(action==='allin'){
       if(l.maxTo<=state.currentBet){confirmAction('Call all-in?',`Commit your remaining ${fmt(state.players[i].stack)} chips?`,'Call all-in',()=>{gate.resume();commit(i,'call');});return;}
-      if(l.canRaise)amounts[i].push(resizePlan(stagedPlan(i),state.players[i].stack));
+      if(l.canRaise)plans[i]=resizePlan(stagedPlan(i),state.players[i].stack);
     }
     else if(action==='call'){commit(i,l.owed?'call':'check');return;}
     else if(action==='commit'){commit(i,'raise',state.players[i].street+valueOf(stagedPlan(i).paid));return;}
