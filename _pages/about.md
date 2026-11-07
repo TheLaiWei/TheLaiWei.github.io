@@ -43,11 +43,11 @@ Lai Wei received his bachelor’s degree in biomedical engineering from The Geor
 
 <br><br><br>
 
-## Projects Section Under Construction {#projects}
+## Selected Projects {#projects}
 
 <div class="projects">
 
-{% assign sorted_projects = site.projects | sort: "importance" %}
+{% assign sorted_projects = site.projects | where: "category", "work" | sort: "importance" %}
 
 <div class="row row-cols-1 row-cols-md-3">
   {% for project in sorted_projects %}
