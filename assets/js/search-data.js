@@ -50,7 +50,7 @@ ninja.data = [{
               window.location.href = "/projects/poker-classic.html";
             },},{id: "projects-poker-practice",
           title: 'Poker Practice',
-          description: "Play heads-up Texas Hold’em against a computer opponent and review your decisions after each hand.",
+          description: "Play Texas Hold’em against one to seven computer opponents and review your decisions after each hand.",
           section: "Projects",handler: () => {
               window.location.href = "/projects/poker-practice.html";
             },},{id: "projects-face-to-face-poker",
