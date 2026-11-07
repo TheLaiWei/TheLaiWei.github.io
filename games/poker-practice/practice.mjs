@@ -1,4 +1,5 @@
-import {newMatch,nextHand,act,legal,validateState,cardLabel} from '../../poker/engine.mjs';
+import {newMatch,nextHand,act,legal,validateState} from './table.mjs';
+import {cardLabel} from '../../poker/engine.mjs';
 import {card,pile,piles,fmt} from '../../poker/table-view.mjs';
 import {VALUES,take,valueOf,combine,stageChip,resizePlan} from '../../poker/chips.mjs';
 import {perspective,chooseAction,describeAction,reviewDecision} from './strategy.mjs';
@@ -27,51 +28,67 @@ function setup() {
 }
 function render() {
   clearTimeout(timer);
-  const s=state(), p=s.players[0], bot=s.players[1], l=legal(s,0);
-  const done=s.phase==='complete', turn=l.active, pot=p.committed+bot.committed;
+  const s=state(), p=s.players[0], l=legal(s,0);
+  const done=s.phase==='complete', turn=l.active, pot=s.players.reduce((sum,q)=>sum+q.committed,0);
   const plan=staged??take(p.wallet,0), amount=valueOf(plan.paid), target=p.street+amount;
   const canRaise=l.canRaise && target>s.currentBet && (target>=l.minTo || target===l.maxTo);
   $('street').textContent='Hand '+s.hand+' · '+(done?'Complete':s.street);
   $('blinds').textContent='Blinds '+s.settings.smallBlind+' / '+s.settings.bigBlind;
-  $('cpu-stack').textContent=fmt(bot.stack)+' chips'+(s.button===1?' · Dealer':'');
+  $('opponents').innerHTML=s.players.slice(1).map((q,n)=>{
+    const seat=n+1;
+    const label=!q.hole.length?'Out':q.folded?'Folded':done?'':q.stack===0?'All-in':s.turn===seat?'Acting':'';
+    const reveal=done && s.result.reason==='showdown' && !q.folded;
+    const badges=[s.button===seat?'D':'',s.sb===seat?'SB':'',s.bb===seat?'BB':'',label].filter(Boolean).join(' · ');
+    return `<section class="opponent" data-active="${!done && s.turn===seat}"><strong>${s.multi?`Bot ${seat}`:'Computer'}</strong><small>${badges}</small><span>${fmt(q.stack)} chips</span><div class="hand">${q.hole.map(c=>card(c,!reveal)).join('')}</div></section>`;
+  }).join('');
   $('your-stack').textContent=fmt(valueOf(plan.remaining))+' available'+(s.button===0?' · Dealer':'');
-  $('cpu').innerHTML=bot.hole.map(c=>card(c,s.result?.reason!=='showdown')).join('');
   $('you').innerHTML=p.hole.map(c=>card(c)).join('');
   $('board').innerHTML=Array.from({length:5},(_,i)=>card(s.board[i])).join('');
   $('pot').textContent=fmt(done?s.result.pot:pot);
-  $('pot-chips').innerHTML=piles(combine(p.wager,bot.wager));
+  $('pot-chips').innerHTML=piles(s.players.reduce((bag,q)=>combine(bag,q.wager),[0,0,0,0]));
   const last=match.decisions.at(-1);
-  let message=turn?'Your turn':'Computer is thinking…';
-  if(last) message=(last.seat===1?'Computer':'You')+' · '+last.label+'. '+message;
+  let message=turn?'Your turn':done?'':s.players[s.turn].name+' is thinking…';
+  if(last) message=s.players[last.seat].name+' · '+last.label+'. '+message;
   if(amount) message='Pending '+fmt(amount)+' · '+(canRaise?'Ready to commit':'Minimum total '+l.minTo);
   if(done) {
     const r=s.result;
-    message=r.winners.length===2?'Split pot':r.winners[0]===0?'You win':'Computer wins';
-    message+=' · '+fmt(r.pot)+' chips · '+(r.hands?r.hands[r.winners[0]].name:'Fold');
+    message=r.winners.map(i=>s.players[i].name+' +'+fmt(r.payouts[i])).join(' · ');
+    if(r.pots?.length>1) message+=' · Main and side pots awarded';
+    else message+=' · '+(r.reason==='fold'?'Fold':'Showdown');
+
   }
   $('message').textContent=message;
+  const sidePots=done && s.result.pots?.length>1;
+  $('awards').hidden=!sidePots;
+  if(sidePots) {
+    $('awards-list').replaceChildren();
+    s.result.pots.forEach(({chips,winners},index)=>{
+      const label=index?'Side pot '+index:'Main pot';
+      line($('awards-list'),'li',label+' · '+chips+' chips → '+winners.map(i=>s.players[i].name).join(' & '));
+    });
+  } else $('awards').open=false;
   $('controls').hidden=done;
   $('finished').hidden=!done;
-  $('next').textContent=s.players.some(x=>x.stack===0)?'New match':'Next hand';
+  $('next').textContent=(!p.stack || s.players.filter(q=>q.stack>0).length<2)?'New match':'Next hand';
   $('rack').innerHTML=VALUES.map((v,i)=>`<button data-chip="${v}" ${!turn||!plan.remaining[i]?'disabled':''} aria-label="Stage ${v} chips">${pile(v,plan.remaining[i])}<small>×${plan.remaining[i]}</small></button>`).join('');
   $('call').textContent=l.call?'Call '+fmt(l.call):'Check';
   $('raise').textContent=(s.currentBet?'Raise':'Bet')+(amount?' '+(s.currentBet?'to ':'')+fmt(target):'');
   $('call').disabled=$('fold').disabled=!turn;
   $('min').disabled=!l.canFullRaise;
-  $('all').disabled=!turn;
+  $('all').disabled=!turn || (!l.canRaise && l.maxTo>s.currentBet);
   $('clear').disabled=!turn||!amount;
   $('raise').disabled=!turn||!canRaise;
-  if(!done && s.turn===1 && !document.hidden && $('setup').hidden) {
+  if(!done && s.turn!==0 && !document.hidden && $('setup').hidden) {
     const revision=s.revision;
     timer=setTimeout(()=>{
       if(state()!==s || state().revision!==revision || document.hidden) return;
-      const action=chooseAction(perspective(s,1,match.decisions));
-      commit(1,action.type,action.to);
-    },450);
+      const action=chooseAction(perspective(s,s.turn,match.decisions));
+      commit(s.turn,action.type,action.to);
+    },s.multi ? 300 : 450);
   }
 }
 function commit(seat,type,to) {
-  const s=state(), view=perspective(s,seat);
+  const s=state(), view=perspective(s,seat,match.decisions);
   const amount=type==='raise'?to-view.committed:view.call;
   const selection=seat===0 && staged && ['call','raise'].includes(type)?resizePlan(staged,amount):null;
   const next=act(s,seat,type,to,s.revision,selection);
@@ -90,7 +107,9 @@ $('setup').onsubmit=e=>{
   if(!ready) return;
   const data=new FormData(e.target);
   try {
-    const fresh=newMatch({names:['You','Computer'],stack:Number(data.get('stack')),
+    const count=Number(data.get('seats'));
+    const names=Array.from({length:count},(_,i)=>i===0?'You':count===2?'Computer':'Bot '+i);
+    const fresh=newMatch({names,stack:Number(data.get('stack')),
       smallBlind:Number(data.get('small')),bigBlind:Number(data.get('big'))});
     if(match && !confirm('Replace this practice match with a new one?')) return;
     match={state:fresh,decisions:[]};staged=null;save();openTable();
@@ -100,7 +119,7 @@ $('settings').onclick=setup;
 $('cancel').onclick=openTable;
 $('next').onclick=()=>{
   if(state().phase!=='complete') return;
-  if(state().players.some(x=>x.stack===0)) return setup();
+  if(!state().players[0].stack || state().players.filter(q=>q.stack>0).length<2) return setup();
   match={state:nextHand(state()),decisions:[]};save();render();
 };
 $('controls').onclick=e=>{
@@ -157,7 +176,7 @@ $('review').onclick=()=>{
       line(details,'summary','Other decisions ('+rest.length+')');
       rest.forEach(g=>showGrade(details,g));
     }
-    line(report,'small','Practice grades use the cards visible then and estimated equity against a random hand.');
+    line(report,'small','Practice grades use the cards visible then and estimated equity against the opponents still in the hand.');
   }
   $('analysis').showModal();
 };
