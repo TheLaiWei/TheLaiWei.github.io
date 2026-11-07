@@ -5,7 +5,7 @@ header {border-bottom:1px solid #383e3a;padding-bottom:10px}
 header a,header button {font-size:12px}
 h1 {font-size:19px;margin:0}h2 {font-family:inherit;font-size:18px;font-weight:650;margin:0 0 5px}
 #setup {max-width:350px;margin:12vh auto;display:grid;gap:16px}
-#setup h2 {font-size:29px}#setup p,#status,small,.meta,.seat span {color:#b0b9b3}
+#setup h2 {font-size:29px}#setup p,#status,small,.meta,#your-stack {color:#b0b9b3}
 .pair,.tools {display:grid;grid-template-columns:1fr 1fr;gap:7px}.tools {grid-template-columns:repeat(4,1fr);margin-top:7px}.tools button {padding:6px 0;font-size:13px}
 .meta {font-size:12px;margin:14px 0 8px}.seat {padding:10px 0}.hand {display:flex;gap:4px}
 .hand .card {width:clamp(54px,17vw,78px);height:clamp(68px,11dvh,100px)}
@@ -37,3 +37,8 @@ h1 {font-size:19px;margin:0}h2 {font-family:inherit;font-size:18px;font-weight:6
 .opponent small {min-height:1em}.opponent[data-active=true] {border-color:#adc7a7}
 .opponent .hand .card {width:32px;height:40px}.opponent .mark {font-size:15px}
 #opponents:has(.opponent:only-child) .opponent {display:flex;align-items:center;justify-content:space-between}
+
+#inspect {grid-column:1/-1}
+#you .face {background:#fff;color:#101114}
+#you .face.red {color:#b4182f}
+#you .mark {color:inherit;font-size:clamp(26px,7.8vw,38px);font-weight:750;line-height:1}
