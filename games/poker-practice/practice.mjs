@@ -65,7 +65,7 @@ function render() {
     const revision=s.revision;
     timer=setTimeout(()=>{
       if(state()!==s || state().revision!==revision || document.hidden) return;
-      const action=chooseAction(perspective(s,1));
+      const action=chooseAction(perspective(s,1,match.decisions));
       commit(1,action.type,action.to);
     },450);
   }
@@ -125,28 +125,40 @@ $('controls').onclick=e=>{
 };
 
 function line(parent,tag,text) {
-  const el=document.createElement(tag);el.textContent=text;parent.append(el);
+  const el=document.createElement(tag);
+  el.textContent=text;
+  parent.append(el);
+  return el;
+}
+function showGrade(parent,{entry,verdict,reason}) {
+  const row=line(parent,'article','');
+  row.className='decision';
+  const label=line(row,'div','');
+  const badge=line(label,'b',verdict);
+  badge.className='verdict '+verdict.toLowerCase();
+  line(label,'strong',entry.street+' · '+entry.label);
+  line(row,'p',reason);
 }
 $('review').onclick=()=>{
   const s=state();
   if(s.phase!=='complete') return;
   const report=$('report');report.replaceChildren();
   const net=s.players[0].stack-s.handStart[0];
-  line(report,'p','Hand '+s.hand+' · '+(net>0?'+':'')+net+' chips for you. Your cards: '+s.players[0].hole.map(cardLabel).join(' ')+'.');
-  line(report,'small','Estimates sample possible boards and random opposing hands using only the cards visible at each decision. The computer’s betting range and future wagers can change the value of a call.');
-  let street='';
-  for(const decision of match.decisions) {
-    if(decision.street!==street) {
-      street=decision.street;
-      const count={preflop:0,flop:3,turn:4,river:5}[street];
-      line(report,'h3',street.toUpperCase()+' '+s.board.slice(0,count).map(cardLabel).join(' '));
+  line(report,'small','Hand '+s.hand+' · '+(net>0?'+':'')+net+' chips · '+s.players[0].hole.map(cardLabel).join(' '));
+  const grades=match.decisions.filter(d=>d.seat===0).map(entry=>({entry,...reviewDecision(entry)}));
+  if (!grades.length) line(report,'p','The hand ended before you had a decision to make.');
+  else {
+    const priority={Bad:0,Close:1,Good:2};
+    const highlights=[...grades].sort((a,b)=>priority[a.verdict]-priority[b.verdict] || b.entry.view.pot-a.entry.view.pot).slice(0,2);
+    highlights.forEach(g=>showGrade(report,g));
+    const rest=grades.filter(g=>!highlights.includes(g));
+    if(rest.length){
+      const details=line(report,'details','');
+      line(details,'summary','Other decisions ('+rest.length+')');
+      rest.forEach(g=>showGrade(details,g));
     }
-    line(report,'strong',(decision.seat===0?'You':'Computer')+' · '+decision.label);
-    if(decision.seat===0) line(report,'p',reviewDecision(decision));
-    else report.append(document.createElement('br'));
+    line(report,'small','Practice grades use the cards visible then and estimated equity against a random hand.');
   }
-  if(match.decisions.length && !match.decisions.some(d=>d.seat===0)) line(report,'p','The hand ended before you had a decision to make.');
-  if(!match.decisions.length) line(report,'p','The blinds put a player all-in and the board ran out automatically.');
   $('analysis').showModal();
 };
 $('close').onclick=()=>$('analysis').close();

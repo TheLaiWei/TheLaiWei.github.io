@@ -1,4 +1,4 @@
-const cacheName='lai-poker-practice-assets-v1';
+const cacheName='lai-poker-practice-assets-v3';
 const urls=['./','./index.html','./practice.css','./practice.mjs','./strategy.mjs',
   '../../poker/style.css','../../poker/engine.mjs','../../poker/chips.mjs',
   '../../poker/table-view.mjs','../../poker/icon.svg'].map(path=>new URL(path,self.registration.scope).href);

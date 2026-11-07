@@ -22,3 +22,11 @@ h1 {font-size:19px;margin:0}h2 {font-family:inherit;font-size:18px;font-weight:6
 #analysis {background:#161b18;color:#eee;max-height:85dvh}
 #analysis h3 {margin:16px 0 4px}#analysis p {margin-bottom:7px}
 #analysis li {margin:5px 0}#analysis button {width:100%}
+
+#report .decision {padding:10px 0;border-bottom:1px solid #374139}
+#report .decision div {display:flex;align-items:center;gap:8px;text-transform:capitalize}
+#report .decision p {margin:5px 0 0;line-height:1.4}
+#report .verdict {padding:2px 7px;border-radius:5px;font-size:13px}
+.verdict.good {color:#c2f1c9;background:#24452d}.verdict.bad {color:#ffd1cb;background:#5a2b29}
+.verdict.close {color:#f3dfb3;background:#4d4029}
+#report small {display:block;margin:10px 0}#report summary {cursor:pointer}
