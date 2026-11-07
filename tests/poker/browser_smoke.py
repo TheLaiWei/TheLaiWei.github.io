@@ -61,13 +61,13 @@ with preview_server() as url, sync_playwright() as p:
  }""")
  t.reload();t.locator('#resume-saved').click();t.locator('#board .face').first.wait_for()
  assert t.locator('#board .face').count()==3
+ assert t.locator('#board .face .mark').count()==6
  assert t.locator('#pot-near').inner_text()=='120'
  def chip(n):return t.locator(f'#player-0 [data-action=chip][data-value="{n}"]')
  for _ in range(2):chip(25).tap()
  assert '+50' in t.locator('#player-0 .pending').inner_text()
  assert t.locator('#pot-near').inner_text()=='120'
- t.locator('[data-action=undo]:enabled').tap()
- assert '+25' in t.locator('#player-0 .pending').inner_text()
+ assert t.locator('[data-action=undo]').count()==0
  t.locator('[data-action=clear]:enabled').tap()
  assert t.locator('#player-0 .pending .bundle').count()==0
  def geometry(w,h):
@@ -78,6 +78,8 @@ with preview_server() as url, sync_playwright() as p:
     for el in t.locator(f'#player-{i} '+sel).all():
      box=el.bounding_box();assert box and box['x']>=0 and box['x']+box['width']<=w+.5 and box['y']>=seat['y']-.5 and box['y']+box['height']<=seat['y']+seat['height']+.5,(w,h,i,sel,box,seat)
    cards=t.locator(f'#player-{i} .hole-cards').bounding_box()
+   stacks=t.locator(f'#player-{i} .chip-button').all()
+   assert len({round(item.bounding_box()['y']) for item in stacks})==1
    tray=t.locator(f'#player-{i} .chip-tray').bounding_box()
    assert (cards['x']<tray['x'])==(i==0)
   assert t.evaluate('document.documentElement.scrollHeight')<=h,(w,h)
@@ -92,6 +94,7 @@ with preview_server() as url, sync_playwright() as p:
    pt={'x':box['x']+box['width']/2,'y':box['y']+box['height']/2,'id':1}
    touches('touchStart',[pt])
    assert t.locator(f'#player-{i} .private-card .face').count()==2
+   assert t.locator(f'#player-{i} .private-card .mark').count()==2
    assert t.locator('[data-action]:enabled').count()==0
    if n==1:
     other=t.locator(f'[data-peek="{1-i}"][data-index="0"]').bounding_box()
@@ -134,6 +137,9 @@ with preview_server() as url, sync_playwright() as p:
  t.reload();t.locator('#resume-saved').click()
  for _ in range(2):chip(25).tap()
  if os.environ.get('PREVIEW'):
+  peek=t.locator('[data-peek="0"]').first
+  peek.focus();t.keyboard.down('Space')
   t.screenshot(path=os.environ['PREVIEW'])
+  t.keyboard.up('Space')
  assert not errors,errors
  print('PASS – live UI, migration, both orientations, four portrait viewport sizes, touch cancellation, two fingers, keyboard, chip staging, commit, refresh, offline reopening.')

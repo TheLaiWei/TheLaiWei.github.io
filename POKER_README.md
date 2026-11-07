@@ -40,7 +40,7 @@ Review and commit the local changes. When ready to publish, merge the reviewed c
 
 ## Redesigned table and saved matches
 
-Hold either private card to reveal both, or focus it and hold Space or Enter. Only one player may peek at a time. The pot shows committed chips. The rack and its balance show what is available after staging. Undo restores the last selection. Call commits the amount owed and Bet/Raise commits the displayed staged total. Change-making uses exact chips when available, then breaks the smallest oversized chip. A completed hand displays the awarded pot amount and moves its chips into the winning racks.
+Hold either private card to reveal both, or focus it and hold Space or Enter. Only one player may peek at a time. The pot shows committed chips. The rack and its balance show what is available after staging. Clear restores all staged chips. Call commits the amount owed and Bet/Raise commits the displayed staged total. Change-making uses exact chips when available, then breaks the smallest oversized chip. A completed hand displays the awarded pot amount and moves its chips into the winning racks.
 
 Existing matches use the same local storage key. A version 1 save has no denomination history, so the game reconstructs each remaining stack and each player's committed chips from their values. Once saved in version 2, the rack composition is retained through reloads. Private peeks and unconfirmed wagers are never persisted.
 
