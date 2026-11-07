@@ -30,3 +30,10 @@ h1 {font-size:19px;margin:0}h2 {font-family:inherit;font-size:18px;font-weight:6
 .verdict.good {color:#c2f1c9;background:#24452d}.verdict.bad {color:#ffd1cb;background:#5a2b29}
 .verdict.close {color:#f3dfb3;background:#4d4029}
 #report small {display:block;margin:10px 0}#report summary {cursor:pointer}
+
+#setup select {padding:10px;color:inherit;background:#151916;border:1px solid #444;border-radius:8px;font:inherit;font-size:16px}
+#opponents {display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:5px;margin-bottom:8px}
+.opponent {display:grid;gap:2px;border:1px solid #384039;border-radius:7px;padding:5px;font-size:12px}
+.opponent small {min-height:1em}.opponent[data-active=true] {border-color:#adc7a7}
+.opponent .hand .card {width:32px;height:40px}.opponent .mark {font-size:15px}
+#opponents:has(.opponent:only-child) .opponent {display:flex;align-items:center;justify-content:space-between}

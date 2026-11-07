@@ -1,5 +1,5 @@
-const cacheName='lai-poker-practice-assets-v3';
-const urls=['./','./index.html','./practice.css','./practice.mjs','./strategy.mjs',
+const cacheName='lai-poker-practice-assets-v4';
+const urls=['./','./index.html','./practice.css','./practice.mjs','./strategy.mjs','./table.mjs',
   '../../poker/style.css','../../poker/engine.mjs','../../poker/chips.mjs',
   '../../poker/table-view.mjs','../../poker/icon.svg'].map(path=>new URL(path,self.registration.scope).href);
 self.addEventListener('install',e=>e.waitUntil(caches.open(cacheName).then(c=>c.addAll(urls))));
