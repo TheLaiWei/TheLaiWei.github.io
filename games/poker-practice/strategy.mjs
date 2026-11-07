@@ -123,25 +123,41 @@ export function describeAction(type,to,view) {
   return type[0].toUpperCase()+type.slice(1);
 }
 
+const percent = value => Math.round(value * 100) + '%';
+
+export function gradeDecision({type,to,view}, strength) {
+  const price = callPrice(view);
+  if (type === 'fold' && !view.call)
+    return {verdict:'Bad', reason:'Checking was free and kept you in the hand.'};
+
+  if (type === 'call' || type === 'fold') {
+    const margin = strength - price;
+    const favorable = type === 'call' ? margin : -margin;
+    const verdict = favorable > 0.12 ? 'Good' : favorable < -0.12 ? 'Bad' : 'Close';
+    return {verdict, reason:`Estimated equity was ${percent(strength)}, and calling ${view.call} needed ${percent(price)} if betting ended here.`};
+  }
+
+  if (type === 'check') {
+    if (strength >= 0.84 && view.street === 'river' && view.checkedTo)
+      return {verdict:'Bad', reason:'Checking back ended the betting with a strong hand that could earn a value bet.'};
+    if (strength >= 0.68)
+      return {verdict:'Close', reason:'Checking can disguise your strong hand, but a bet could earn chips from a weaker one.'};
+    return {verdict:'Good', reason:view.street === 'river' ? 'Checking kept the pot small with limited value from a bet.' : 'Checking let you continue without paying more chips.'};
+  }
+
+  const risk = to-view.committed;
+  if (strength >= 0.68)
+    return {verdict:'Good',reason:`With ${percent(strength)} estimated equity, your wager gave weaker hands a chance to pay you.`};
+  if (drawPotential(view) && risk <= view.pot + view.call)
+    return {verdict:'Good',reason:'Your draw can improve if called, and the raise can win the pot immediately.'};
+  if (strength < 0.30 && risk >= view.pot && view.owed)
+    return {verdict:'Bad',reason:`You risked ${risk} into ${view.pot} with only ${percent(strength)} estimated equity.`};
+  return {verdict:'Close',reason:`Risking ${risk} into ${view.pot} depends on how often the computer folds or calls with worse.`};
+}
+
 export function reviewDecision(entry) {
-  const v=entry.view, price=callPrice(v);
-  // Stable replay of the estimate when a review is reopened.
+  const v=entry.view;
   let seed=[...v.hole,...v.board,v.pot,v.call].reduce((s,n)=>(Math.imul(s,31)+n)>>>0,17);
   const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
-  const strength=equity(v,random,256), percent=n=>Math.round(n*100)+'%';
-  const estimate='Estimated showdown equity '+percent(strength)+' against a random hand.';
-  if(v.call) {
-    const total=v.pot-Math.max(0,v.owed-v.call)+v.call;
-    const odds='Calling '+v.call+' for a final pot of '+total+' needs '+percent(price)+' equity if betting ends here.';
-    const comparison = strength<price ? 'Your estimate fell below that price.' : 'Your estimate cleared that price.';
-    let question;
-    if(entry.type==='fold') question='A fold gives up your claim to the pot. Consider whether the bet suggests a stronger opponent than a random hand.';
-    else if(entry.type==='raise') question='You raised to '+entry.to+'. Consider which hands would call the extra chips.';
-    else question=v.street==='river'?'On the river, compare that price with how often you expect the computer to bluff.':'For the call, consider how much another bet on a later street could cost.';
-    return odds+' '+estimate+' '+comparison+' '+question;
-  }
-  const note=entry.type==='raise'
-    ? 'You bet '+(entry.to-v.committed)+' into '+v.pot+'. Consider which weaker hands could call and which stronger hands could fold.'
-    : 'Checking cost no chips. Consider whether a bet would earn a call from a weaker hand.';
-  return note+' '+estimate;
+  return gradeDecision(entry,equity(v,random,256));
 }

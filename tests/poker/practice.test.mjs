@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {newMatch,act,nextHand,validateState} from '../../poker/engine.mjs';
-import {perspective,chooseAction,equity,callPrice,reviewDecision} from '../../games/poker-practice/strategy.mjs';
+import {perspective,chooseAction,equity,callPrice,gradeDecision,reviewDecision} from '../../games/poker-practice/strategy.mjs';
 
 test('practice decision input excludes opponent hole cards, deck, and burns',()=>{
   const s=newMatch({stack:200,smallBlind:1,bigBlind:2,button:1});
@@ -19,8 +19,8 @@ test('pot odds account for unmatched chips and a board-only tie gives half equit
 });
 test('reopening the same review reproduces the same decision-time estimate',()=>{
   const view=perspective(newMatch({button:0}),0),entry={view,type:'call'};
-  assert.equal(reviewDecision(entry),reviewDecision(entry));
-  assert.match(reviewDecision(entry),/chips|Calling/);
+  assert.deepEqual(reviewDecision(entry),reviewDecision(entry));
+  assert.match(reviewDecision(entry).reason,/calling/i);
 });
 test('opponent and human can play through complete legal practice hands',()=>{
   let s=newMatch({stack:200,smallBlind:1,bigBlind:2,button:1});
@@ -65,4 +65,13 @@ test('button opens a mixed range and can still decline to raise',()=>{
     if(a.type==='raise'){opens++;assert.equal(a.to,5);}
   }
   assert.ok(opens>=24 && opens<48,'Expected a wide, mixed button opening range');
+});
+
+test('practice grades distinguish clear price mistakes from close decisions',()=>{
+  const view={call:20,owed:20,pot:60};
+  for(const [strength,call,fold] of [[0.55,'Good','Bad'],[0.25,'Close','Close'],[0.06,'Bad','Good']]){
+    assert.equal(gradeDecision({type:'call',view},strength).verdict,call);
+    assert.equal(gradeDecision({type:'fold',view},strength).verdict,fold);
+  }
+  assert.equal(gradeDecision({type:'fold',view:{call:0}},0.05).verdict,'Bad');
 });
