@@ -16,19 +16,12 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/publications/";
           },
-        },{id: "nav-projects-section-under-construction",
-          title: "Projects Section Under Construction",
-          description: "A growing collection of your cool projects.",
+        },{id: "nav-projects",
+          title: "Projects",
+          description: "This section is still under construction. More project details will be added soon.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/projects/";
-          },
-        },{id: "nav-games",
-          title: "Games",
-          description: "",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/games/";
           },
         },{id: "projects-biomedical-photonics",
           title: 'Biomedical Photonics',
@@ -50,6 +43,11 @@ ninja.data = [{
           description: "Machine Learning Assisted Diagnosis",
           section: "Projects",handler: () => {
               window.location.href = "/projects/4_project.html";
+            },},{id: "projects-face-to-face-poker-classic",
+          title: 'Face to Face Poker Classic',
+          description: "The original green-table heads-up poker game, designed for two people sharing one phone.",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/poker-classic.html";
             },},{id: "projects-face-to-face-poker",
           title: 'Face to Face Poker',
           description: "Two people, one phone. A small heads-up Texas Hold’em game with virtual chips.",
