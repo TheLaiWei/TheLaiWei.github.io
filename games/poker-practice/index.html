@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c100f"><title>Poker Practice · Lai Wei</title>
+<link rel="icon" href="../../poker/icon.svg"><link rel="stylesheet" href="../../poker/style.css"><link rel="stylesheet" href="./practice.css">
+<script type="module" src="./practice.mjs"></script>
+</head>
+<body><main>
+<header><a href="/projects/#fun">← Projects</a><h1>Poker Practice</h1><button id="settings">New match</button></header>
+<form id="setup"><h2>Heads-up practice</h2><p>Play the computer. After any hand, choose Review to revisit your decisions.</p>
+<label>Starting chips<input name="stack" type="number" value="200" min="2" max="1000000" required></label>
+<div class="pair"><label>Small blind<input name="small" type="number" value="1" min="1" required></label><label>Big blind<input name="big" type="number" value="2" min="2" required></label></div>
+<button class="primary">Deal first hand</button><button type="button" id="cancel" hidden>Back to match</button>
+</form>
+<section id="tabletop" hidden>
+<div class="meta"><span id="street"></span><span id="blinds"></span></div>
+<section class="seat"><div><h2>Computer</h2><span id="cpu-stack"></span></div><div class="hand" id="cpu"></div></section>
+<section class="middle"><div class="pot"><span>Pot <strong id="pot"></strong></span><span id="pot-chips"></span></div><div id="board"></div></section>
+<section class="seat"><div><h2>You</h2><span id="your-stack"></span></div><div class="hand" id="you"></div></section>
+<p id="message" role="status"></p>
+<section id="controls"><div id="rack"></div><div class="pair"><button id="call"></button><button id="raise"></button></div>
+<div class="tools"><button id="min">Minimum</button><button id="all">All-in</button><button id="clear">Clear</button><button id="fold">Fold</button></div></section>
+<div id="finished" class="pair" hidden><button id="next" class="primary">Next hand</button><button id="review">Review hand</button></div>
+</section>
+<p id="status" role="status"></p>
+<dialog id="analysis"><h2>Hand review</h2><div id="report"></div><button id="close">Back to table</button></dialog>
+</main></body></html>
