@@ -14,7 +14,12 @@ export function eventText(e, t = (word) => word, zh = false) {
   if (e.kind === "miss")
     return start + (zh ? "：目标已倒下。" : " misses its defeated target.");
   const hp = e.delta > 0 ? "+" + e.delta : String(e.delta).replace("-", "−");
-  const prefix = start + " → " + target;
+  const intercept = e.redirectedFrom
+    ? zh
+      ? "（从" + hero(e.redirectedFrom) + "转移）"
+      : " (intercepted for " + hero(e.redirectedFrom) + ")"
+    : "";
+  const prefix = start + " → " + target + intercept;
   if (e.kind === "damage")
     return (
       prefix +
@@ -29,6 +34,7 @@ export function eventText(e, t = (word) => word, zh = false) {
       (e.saved ? (zh ? " · 圣域守护" : " · Sanctuary") : "") +
       (e.defeated ? (zh ? " · 已倒下" : " · defeated") : "")
     );
+  if (e.kind === "mark") return prefix + (zh ? " · 已标记" : " · marked");
   if (e.kind === "heal")
     return prefix + " +" + e.delta + (zh ? " 生命" : " HP");
   if (e.kind === "ward")
