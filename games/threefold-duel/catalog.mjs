@@ -11,20 +11,29 @@ export const skills = {
   Guard: [
     "ally",
     30,
-    "Guard an ally this round, reducing incoming attack damage by 45%.",
+    "Guard an ally this round, reducing incoming attack damage by 65%.",
   ],
   Ambush: [
     "enemy",
     8,
-    "Deal 110% physical attack, or 165% against a marked enemy.",
+    "Deal 130% physical attack (180% against a marked enemy). After Ambush, take 35% less damage from the next attack this round.",
   ],
   Riposte: [
     "ally",
     24,
     "Guard an ally for 30% reduction and counter each blocked attack for 50% physical attack.",
   ],
+  Taunt: [
+    "self",
+    30,
+    "Draw single-target enemy active attacks aimed at teammates to yourself this round. Take 35% less damage from those redirected hits. Area attacks, counters and reflections bypass Taunt.",
+  ],
   Spark: ["enemy", 0, "Deal 105% magical attack."],
-  Flare: ["enemy", -3, "Deal 125% magical attack."],
+  Flare: [
+    "all",
+    -3,
+    "Hit every living enemy for 65% magical attack each. Resolve each target’s magic defense separately.",
+  ],
   Aegis: ["ally", 30, "Shield an ally for 25% of their maximum HP this round."],
   Discharge: [
     "enemy",
@@ -33,13 +42,21 @@ export const skills = {
   ],
   Smite: ["enemy", 0, "Deal 100% magical attack as holy damage."],
   Mend: ["ally", 0, "Restore HP equal to 90% magical attack."],
-  Judgment: ["enemy", -2, "Deal 155% magical attack as holy damage."],
+  Judgment: [
+    "enemy",
+    0,
+    "Deal 170% magical attack as holy damage, plus 6 damage against a marked enemy.",
+  ],
   Bless: [
     "ally",
     25,
-    "Grant +8 holy damage on the next attack. Lasts until used, refreshes once.",
+    "Give an ally a 6 HP barrier this round and +12 holy damage on their next active attack. A group attack applies the bonus once, to the lowest-health enemy by percentage. Recasts refresh the bonus.",
   ],
-  Haste: ["ally", 25, "Grant +8 Speed next round."],
+  Haste: [
+    "ally",
+    25,
+    "Immediately heal an ally for 8 HP and grant +10 Speed next round.",
+  ],
 };
 const rows = [
   [
@@ -78,7 +95,7 @@ const rows = [
         "quarry",
         "Quarry",
         1,
-        "Slash marks its target after dealing damage. The next allied hit consumes the mark.",
+        "Slash marks its target after dealing damage. The next allied active attack consumes the mark for +4 damage.",
         1,
       ],
       [
@@ -109,6 +126,29 @@ const rows = [
         "Once per round, double attack damage against a target below 35% HP.",
         1,
       ],
+      [
+        "taunt",
+        "Challenging Roar",
+        1,
+        "Replace slot 2 with Taunt to intercept single-target enemy attacks aimed at teammates.",
+        1,
+        "Taunt",
+        1,
+      ],
+      [
+        "stalwart",
+        "Stalwart Bulwark",
+        2,
+        "After your first redirected hit each round, gain an 8 HP barrier. Requires Taunt.",
+        1,
+      ],
+      [
+        "shadowstep",
+        "Shadowstep",
+        2,
+        "When Ambush reduces an incoming hit, mark the attacker. Once per round.",
+        1,
+      ],
     ],
   ],
   [
@@ -123,15 +163,7 @@ const rows = [
       ],
       ["focus", "Crystal Focus", 0, "Gain +3 magical attack.", 3],
       ["cloak", "Runed Cloak", 0, "Gain +3 magical defense.", 3],
-      [
-        "aegis",
-        "Aegis Weave",
-        1,
-        "Replace Flare’s slot with Aegis.",
-        1,
-        "Aegis",
-        1,
-      ],
+      ["aegis", "Aegis Weave", 1, "Replace slot 2 with Aegis.", 1, "Aegis", 1],
       [
         "discharge",
         "Charged Staff",
@@ -145,7 +177,7 @@ const rows = [
         "flare",
         "Ember Tome",
         1,
-        "Restore Flare in slot 2 and gain +2 magical attack.",
+        "Restore Flame Storm in slot 2 and gain +2 magical attack.",
         1,
         "Flare",
         1,
@@ -157,7 +189,13 @@ const rows = [
         "At round start, shield yourself for 6 HP.",
         1,
       ],
-      ["cinder", "Cinder Seal", 1, "Flare marks its target after impact.", 1],
+      [
+        "cinder",
+        "Cinder Seal",
+        1,
+        "After Flame Storm hits, mark one surviving target with the lowest HP percentage.",
+        1,
+      ],
       [
         "mirror",
         "Mirror Ward",
@@ -180,6 +218,27 @@ const rows = [
         "Once per match, an active Mage barrier saves its bearer from a lethal attack at 1 HP.",
         1,
       ],
+      [
+        "afterburn",
+        "Scorching Wake",
+        0,
+        "When Flame Storm hits at least two enemies, deal 3 extra damage to the one with the lowest HP percentage.",
+        1,
+      ],
+      [
+        "concentrate",
+        "Focused Ignition",
+        1,
+        "When Flame Storm hits a single enemy, use 115% magical attack instead of 65%.",
+        1,
+      ],
+      [
+        "pulse",
+        "Barrier Pulse",
+        2,
+        "When you cast Aegis, deal 6 magical damage to an enemy, prioritizing a marked target.",
+        1,
+      ],
     ],
   ],
   [
@@ -198,7 +257,7 @@ const rows = [
         "judgment",
         "Judgment",
         1,
-        "Replace Mend’s slot with Judgment.",
+        "Choose either skill to replace with Judgment.",
         1,
         "Judgment",
         1,
@@ -207,7 +266,7 @@ const rows = [
         "arms",
         "Consecrated Arms",
         1,
-        "Replace Smite’s slot with Bless.",
+        "Choose either skill to replace with Consecrated Arms.",
         1,
         "Bless",
         0,
@@ -216,7 +275,7 @@ const rows = [
         "hymn",
         "Marching Hymn",
         1,
-        "Replace Smite’s slot with Haste.",
+        "Choose either skill to replace with Haste.",
         1,
         "Haste",
         0,
@@ -225,7 +284,7 @@ const rows = [
         "renew",
         "Healing Vow",
         1,
-        "Restore Mend in slot 2 and gain +2 magical defense.",
+        "Restore Mend in either slot and gain +2 magical defense.",
         1,
         "Mend",
         1,
@@ -238,7 +297,13 @@ const rows = [
         "Mend converts excess healing into a barrier lasting this round.",
         1,
       ],
-      ["fervor", "Holy Fervor", 2, "Bless grants 6 additional holy damage.", 1],
+      [
+        "fervor",
+        "Holy Fervor",
+        2,
+        "Consecrated Arms grants 4 additional holy damage to its primary target.",
+        1,
+      ],
       [
         "verdict",
         "Final Verdict",
@@ -251,6 +316,27 @@ const rows = [
         "Second Dawn",
         3,
         "Once per match, at round start heal each living teammate for 12 HP when any is below half HP.",
+        1,
+      ],
+      [
+        "prayer",
+        "Field Prayer",
+        0,
+        "Mend also gives its target a 5 HP barrier this round, even at full HP.",
+        1,
+      ],
+      [
+        "doublebless",
+        "Twin Consecration",
+        2,
+        "Consecrated Arms grants +6 holy damage on the next active attack of a second living ally with the lowest HP percentage. Only the primary target gains a barrier.",
+        1,
+      ],
+      [
+        "holyverdict",
+        "Sacred Verdict",
+        3,
+        "The first time Judgment hits a marked target each round, heal the living teammate with the lowest HP percentage for 12 HP.",
         1,
       ],
     ],
@@ -330,6 +416,27 @@ const rows = [
         "Once per match, the wearer’s first attack deals +18 damage and marks its target.",
         1,
       ],
+      [
+        "aim",
+        "Coordinated Aim",
+        0,
+        "Your first single-target active attack each round marks the enemy after damage.",
+        1,
+      ],
+      [
+        "cover",
+        "Covering Counterattack",
+        1,
+        "When guarded or when Taunt diverts an attack away from you, gain +6 damage on your next active attack. Refreshes instead of stacking.",
+        1,
+      ],
+      [
+        "rally",
+        "Shatter Rally",
+        2,
+        "When the first allied barrier breaks each round, all living teammates gain +3 Speed next round.",
+        1,
+      ],
     ],
   ],
 ];
@@ -356,12 +463,27 @@ export const dependencies = {
   fervor: ["Bless"],
   verdict: ["Judgment"],
   prism: ["Smite"],
+  votive: ["Smite", "Judgment"],
+  stalwart: ["Taunt"],
+  shadowstep: ["Ambush"],
+  afterburn: ["Flare"],
+  concentrate: ["Flare"],
+  pulse: ["Aegis"],
+  prayer: ["Mend"],
+  doublebless: ["Bless"],
+  holyverdict: ["Judgment"],
 };
+export function slotsFor(hero, card) {
+  if (!card.skill || hero.skills.includes(card.skill)) return [];
+  return card.group === "Priest" ? hero.skills.map((_, i) => i) : [card.slot];
+}
 export function replacement(
   hero,
   card,
   {
-    skillName = (s) => s,
+    slot = card.slot,
+    skillName = (s) =>
+      s === "Flare" ? "Flame Storm" : s === "Bless" ? "Consecrated Arms" : s,
     skillText = (s) => skills[s][2],
     cardName = (c) => c.name,
     inactive = "Inactive after swap:",
@@ -369,14 +491,14 @@ export function replacement(
 ) {
   if (!card.skill) return "";
   const future = hero.skills.slice();
-  future[card.slot] = card.skill;
+  future[slot] = card.skill;
   const lost = Object.keys(hero.cards).filter(
     (id) =>
-      dependencies[id]?.includes(hero.skills[card.slot]) &&
+      dependencies[id]?.includes(hero.skills[slot]) &&
       !dependencies[id].some((s) => future.includes(s)),
   );
   return [
-    skillName(hero.skills[card.slot]) + " → " + skillName(card.skill),
+    skillName(hero.skills[slot]) + " → " + skillName(card.skill),
     skillText(card.skill),
     lost.length
       ? inactive + " " + lost.map((id) => cardName(byId[id])).join(", ")

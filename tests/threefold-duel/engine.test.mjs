@@ -24,10 +24,10 @@ function random(seed) {
     return seed / 4294967296;
   };
 }
-test("48 unique cards; 12 designs in each group", () => {
-  assert.equal(new Set(cards.map((c) => c.id)).size, 48);
+test("60 unique cards; 15 designs in each group", () => {
+  assert.equal(new Set(cards.map((c) => c.id)).size, 60);
   for (const group of ["Fighter", "Mage", "Priest", "Any"])
-    assert.equal(cards.filter((c) => c.group === group).length, 12);
+    assert.equal(cards.filter((c) => c.group === group).length, 15);
 });
 test("Luck includes defeated heroes, caps at ten per hero, and interpolates", () => {
   const t = newMatch().teams[0];

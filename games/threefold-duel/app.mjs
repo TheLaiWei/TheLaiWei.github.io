@@ -1,4 +1,5 @@
 import { snapshot, playBattle } from "./battle.mjs";
+import { supports } from "./synergy.mjs";
 import { eventText } from "./events.mjs";
 import {
   zh,
@@ -18,6 +19,8 @@ import {
   qualities,
   byId,
   replacement,
+  slotsFor,
+  dependencies,
 } from "./catalog.mjs";
 import {
   newMatch,
@@ -75,6 +78,7 @@ const instructions = [
   "Place your phone between you. Shield your edge with one hand and open your private tray. Choose a skill and target for every living hero.",
   "Lock both plans. Faster actions resolve first. Guard and barriers have priority. Speed ties alternate favored seats each round. An action aimed at a fallen target misses.",
   "Read the results, then privately draft one of three cards. Both picks are revealed together. Drafted passives last the match. A replacement can change your hero\u2019s role.",
+  "Marks add 4 damage to the next active hit. Specialized cards enter the draft when a living hero can use their effect. Taunt redirects single-target attacks, while Flame Storm hits every living enemy.",
   "Defeat all three enemies to win.",
 ];
 $("#rules").onclick = () =>
@@ -102,6 +106,7 @@ const summary = (c) =>
           (c.id === "exploit" ? "party" : "hero") +
           ".");
 const illustrations = {
+  Taunt: "fighter-guardian",
   Ambush: "fighter-assassin",
   Riposte: "fighter-duelist",
   Guard: "fighter-guardian",
@@ -114,10 +119,27 @@ const illustrations = {
   Mend: "priest-healer",
 };
 const motifs = {
-  guard: ["plate", "feint", "iron", "mail", "guarded"],
-  speed: ["foot", "tempo", "pilgrim", "stride"],
-  strike: ["edge", "execution", "drill", "comet", "focus"],
-  mark: ["quarry", "pursuit", "cinder", "sight", "exploit", "cleanse"],
+  guard: ["plate", "feint", "iron", "mail", "guarded", "cover", "stalwart"],
+  speed: ["foot", "tempo", "pilgrim", "stride", "rally"],
+  strike: [
+    "edge",
+    "execution",
+    "drill",
+    "comet",
+    "focus",
+    "concentrate",
+    "afterburn",
+  ],
+  mark: [
+    "quarry",
+    "pursuit",
+    "cinder",
+    "sight",
+    "exploit",
+    "cleanse",
+    "aim",
+    "shadowstep",
+  ],
   barrier: [
     "thread",
     "cloak",
@@ -128,9 +150,11 @@ const motifs = {
     "sanctuary",
     "relay",
     "overflow",
+    "pulse",
+    "prayer",
   ],
-  holy: ["votive", "prism", "verdict"],
-  blessing: ["mercy", "fervor", "dawn", "ration", "vigor"],
+  holy: ["votive", "prism", "verdict", "holyverdict"],
+  blessing: ["mercy", "fervor", "dawn", "ration", "vigor", "doublebless"],
   luck: ["luck"],
 };
 function cardFace(c) {
@@ -163,7 +187,9 @@ $("#library").onclick = () =>
           "<details><summary>" +
           t(n === "Any" ? "Shared party" : n) +
           " · " +
-          t("12 cards") +
+          cards.filter((c) => c.group === n).length +
+          " " +
+          (zh ? "张卡牌" : "cards") +
           "</summary>" +
           cards
             .filter((c) => c.group === n)
@@ -260,18 +286,26 @@ function privatePlan(s) {
     )
     .join("");
   const skill = plan && skills[h.skills[plan.slot]];
-  const targets = skill
-    ? g.teams[skill[0] === "ally" ? s : 1 - s]
-        .map((tgt, j) =>
-          btn(
-            "target-" + j,
-            t(tgt.name) + " " + tgt.hp,
-            "choice " + (plan.target === j ? "selected" : ""),
-            !tgt.hp,
-          ),
-        )
-        .join("")
-    : "";
+  const automatic = skill && ["all", "self"].includes(skill[0]);
+  const targets = automatic
+    ? skill[0] === "self"
+      ? t(h.name)
+      : g.teams[1 - s]
+          .filter((a) => a.hp)
+          .map((a) => t(a.name))
+          .join(" · ")
+    : skill
+      ? g.teams[skill[0] === "ally" ? s : 1 - s]
+          .map((tgt, j) =>
+            btn(
+              "target-" + j,
+              t(tgt.name) + " " + tgt.hp,
+              "choice " + (plan.target === j ? "selected" : ""),
+              !tgt.hp,
+            ),
+          )
+          .join("")
+      : "";
   const ready = g.teams[s].every(
     (a, j) => !a.hp || Number.isInteger(plans[s][j]?.target),
   );
@@ -294,7 +328,15 @@ function privatePlan(s) {
       ? '<p class="note">' +
         skillText(h.skills[plan.slot]) +
         " " +
-        t(skill[0] === "ally" ? "Choose an ally." : "Choose an enemy.") +
+        t(
+          automatic
+            ? skill[0] === "all"
+              ? "All living enemies"
+              : "Self"
+            : skill[0] === "ally"
+              ? "Choose an ally."
+              : "Choose an enemy.",
+        ) +
         '</p><div class="options">' +
         targets +
         "</div>"
@@ -305,6 +347,41 @@ function privatePlan(s) {
 function privateDraft(s) {
   const pick = picks[s],
     c = pick?.card;
+  const hero = g.teams[s][pick?.target];
+  const slotOptions = hero && c?.skill ? slotsFor(hero, c) : [];
+  const needsSlot = c?.skill && !Number.isInteger(pick.slot);
+  let warning = "";
+  if (hero && c.skill && !needsSlot) {
+    const team = g.teams[s];
+    const after = team.map((a) =>
+      a === hero
+        ? {
+            ...a,
+            skills: a.skills.map((name, i) =>
+              i === pick.slot ? c.skill : name,
+            ),
+          }
+        : a,
+    );
+    const lost = team.flatMap((a, i) =>
+      a.hp
+        ? Object.keys(a.cards).filter(
+            (id) =>
+              supports(team, a, byId[id]) &&
+              !supports(after, after[i], byId[id]) &&
+              !(
+                a === hero && dependencies[id]?.includes(hero.skills[pick.slot])
+              ),
+          )
+        : [],
+    );
+    if (lost.length)
+      warning =
+        " " +
+        t("Inactive after swap:") +
+        " " +
+        [...new Set(lost)].map((id) => cardName(byId[id])).join(" · ");
+  }
   return (
     '<div class="draft-list">' +
     offers[s]
@@ -332,20 +409,42 @@ function privateDraft(s) {
           )
           .join("") +
         "</div>" +
-        (Number.isInteger(pick.target)
+        (slotOptions.length > 1
+          ? '<p class="note">' +
+            t("Choose a skill to replace") +
+            '</p><div class="options">' +
+            slotOptions
+              .map((j) =>
+                btn(
+                  "swap-" + j,
+                  t(hero.skills[j]) + " → " + t(c.skill),
+                  "choice " + (pick.slot === j ? "selected" : ""),
+                ),
+              )
+              .join("") +
+            "</div>"
+          : "") +
+        (Number.isInteger(pick.target) && !needsSlot
           ? '<p class="note"><b>' +
             t(g.teams[s][pick.target].name) +
             "</b> · " +
             (replacement(g.teams[s][pick.target], c, {
+              slot: pick.slot,
               skillName: t,
               skillText,
               cardName,
               inactive: t("Inactive after swap:"),
             }) || cardText(c)) +
+            warning +
             "</p>"
           : "")
       : "") +
-    btn("lock", "Lock card", "seal", !Number.isInteger(pick?.target))
+    btn(
+      "lock",
+      "Lock card",
+      "seal",
+      !Number.isInteger(pick?.target) || needsSlot,
+    )
   );
 }
 function tray(s) {
@@ -457,8 +556,8 @@ function lock(s) {
     results = g.history.at(-1).events;
     launchPlayback();
   } else {
-    results = picks.map(({ card, target }, side) => {
-      applyCard(g.teams[side], card, target);
+    results = picks.map(({ card, target, slot }, side) => {
+      applyCard(g.teams[side], card, target, slot);
       return { side, hero: g.teams[side][target].name, id: card.id };
     });
     g.history.at(-1).picks = results.slice();
@@ -492,7 +591,14 @@ function action(code, s) {
     opened[s] = false;
   }
   if (type === "actor") cursor[s] = n;
-  if (type === "skill") plans[s][cursor[s]] = { slot: n };
+  if (type === "skill") {
+    const i = cursor[s],
+      mode = skills[team[i].skills[n]][0];
+    plans[s][i] = {
+      slot: n,
+      target: mode === "all" ? -1 : mode === "self" ? i : undefined,
+    };
+  }
   if (type === "target") {
     plans[s][cursor[s]].target = n;
     const next = team.findIndex(
@@ -506,6 +612,15 @@ function action(code, s) {
     picks[s] = { card, target: targets.length === 1 ? targets[0] : undefined };
   }
   if (type === "recipient") picks[s].target = n;
+  if (type === "card" || type === "recipient") {
+    const pick = picks[s];
+    const opts =
+      pick.card.skill && team[pick.target]
+        ? slotsFor(team[pick.target], pick.card)
+        : [];
+    pick.slot = opts.length === 1 ? opts[0] : undefined;
+  }
+  if (type === "swap") picks[s].slot = n;
   if (type === "lock") lock(s);
   if (type === "continue") {
     if (phase === "combat") {
