@@ -10,12 +10,17 @@ export const snapshot = (teams) =>
       max: h.max,
       shield: h.ward?.left || 0,
       marked: h.mark,
+      taunt: !!h.round.taunt,
+      evade: !!h.round.evade,
       guarded: Boolean(h.guard?.source.hp),
       blessed: Boolean(h.bless),
     })),
   );
 
 const effects = {
+  Taunt: "ward",
+  "Holy Verdict": "heal",
+  "Barrier Pulse": "spark",
   Slash: "blade",
   Ambush: "ambush",
   Counter: "blade",
@@ -113,6 +118,8 @@ export async function playBattle(
         el.querySelector(".vitals").textContent = h.hp + " / " + h.max;
         el.querySelector(".conditions").textContent = [
           h.shield ? "◇ " + h.shield : "",
+          h.taunt ? t("Taunt") : "",
+          h.evade ? t("Evasion") : "",
           h.marked ? t("Marked") : "",
           h.guarded ? t("Guard") : "",
           h.blessed ? t("Blessed") : "",
@@ -159,37 +166,48 @@ export async function playBattle(
     dest.classList.add("targeted");
     const from = point(event.from),
       to = point(event.to);
+    const wave = event.skill === "Flare" && !miss;
     if (
       !miss &&
       !reduce &&
       !same(event.from, event.to) &&
-      !["blade", "ambush"].includes(effect)
+      (event.redirectedFrom || wave || !["blade", "ambush"].includes(effect))
     ) {
-      const dx = to.x - from.x,
-        dy = to.y - from.y,
-        angle = effect === "fire" ? (Math.atan2(dy, dx) * 180) / Math.PI : 0;
-      const spell = sprite("travel " + effect, from, glyph(effect));
-      spell.animate(
-        [
-          {
-            transform:
-              "translate(-50%,-50%) rotate(" + angle + "deg) scale(.55)",
-          },
-          {
-            transform:
-              "translate(calc(-50% + " +
-              dx +
-              "px),calc(-50% + " +
-              dy +
-              "px)) rotate(" +
-              angle +
-              "deg) scale(1.05)",
-          },
-        ],
-        { duration: 430, easing: "ease-in", fill: "forwards" },
-      );
+      const targets = wave ? event.volley || [] : [event.to];
+      for (const pos of targets) {
+        const end = point(pos),
+          angle =
+            effect === "fire"
+              ? (Math.atan2(end.y - from.y, end.x - from.x) * 180) / Math.PI
+              : 0;
+        const frame = (p) =>
+          "translate(calc(-50% + " +
+          (p.x - from.x) +
+          "px),calc(-50% + " +
+          (p.y - from.y) +
+          "px)) rotate(" +
+          angle +
+          "deg)";
+        const frames = [{ transform: frame(from) }];
+        if (event.redirectedFrom) {
+          const intended = point(event.redirectedFrom);
+          frames.push({
+            transform: frame({
+              x: (from.x + intended.x * 3) / 4,
+              y: (from.y + intended.y * 3) / 4,
+            }),
+            offset: 0.56,
+          });
+        }
+        frames.push({ transform: frame(end) });
+        sprite("travel " + effect, from, glyph(effect)).animate(frames, {
+          duration: 430,
+          easing: "ease-in",
+          fill: "forwards",
+        });
+      }
     }
-    await pause(reduce ? 150 : 430);
+    await pause(reduce ? 150 : wave && !event.volley ? 85 : 430);
     if (signal.aborted) return;
     fx.replaceChildren();
     paint(after);
@@ -221,7 +239,7 @@ export async function playBattle(
         label.textContent = value;
       }
     }
-    await pause(reduce ? 700 : 750);
+    await pause(wave ? 390 : reduce ? 700 : 750);
     if (signal.aborted) return;
     src.classList.remove("casting");
     dest.classList.remove("targeted", "struck", "radiant");

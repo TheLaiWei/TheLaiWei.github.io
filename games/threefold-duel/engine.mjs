@@ -1,5 +1,6 @@
-import { classes, cards, skills } from "./catalog.mjs";
+import { classes, cards, skills, slotsFor } from "./catalog.mjs";
 
+import { supports } from "./synergy.mjs";
 import { eventText } from "./events.mjs";
 
 const bases = [
@@ -56,8 +57,9 @@ export function eligible(team, c) {
         h.hp > 0 &&
         (c.group === "Any" || c.group === h.name) &&
         (c.skill
-          ? h.skills[c.slot] !== c.skill
+          ? slotsFor(h, c).length > 0
           : (h.cards[c.id] || 0) < c.limit) &&
+        supports(team, h, c) &&
         (c.id !== "luck" || h.luck < 10) &&
         (c.id !== "exploit" || !team.some((member) => member.cards.exploit)),
     )
@@ -101,10 +103,13 @@ const boosts = {
   mail: { def: 2, res: 2 },
   stride: { speed: 4 },
 };
-export function applyCard(team, c, i) {
+export function applyCard(team, c, i, slot = c.slot) {
   if (!eligible(team, c).includes(i)) throw Error("Ineligible card or target");
   const h = team[i];
-  if (c.skill) h.skills[c.slot] = c.skill;
+  if (c.skill) {
+    if (!slotsFor(h, c).includes(slot)) throw Error("Invalid skill slot");
+    h.skills[slot] = c.skill;
+  }
   // A stance can be restored after a pivot. Its permanent stat bonus is awarded only once.
   const first = !h.cards[c.id];
   if (!c.skill || first)
@@ -120,7 +125,12 @@ export function art(h) {
   if (h.name === "Fighter")
     return (
       "fighter-" +
-      { Ambush: "assassin", Riposte: "duelist", Guard: "guardian" }[h.skills[1]]
+      {
+        Ambush: "assassin",
+        Riposte: "duelist",
+        Taunt: "guardian",
+        Guard: "guardian",
+      }[h.skills[1]]
     );
   if (h.name === "Mage")
     return (
@@ -151,7 +161,8 @@ export function startRound(g) {
       h.round = {};
       h.guard = null;
       h.ward = null;
-      h.bonusSpeed = h.nextSpeed;
+      h.bonusSpeed = h.nextSpeed + (h.rallySpeed || 0);
+      h.rallySpeed = 0;
       h.nextSpeed = 0;
       if (h.hp && h.mark && h.cards.cleanse) {
         h.mark = false;
@@ -183,34 +194,45 @@ const power = {
   Slash: 1,
   Counter: 0.5,
   Spark: 1.05,
-  Flare: 1.25,
+  Flare: 0.65,
+  "Barrier Pulse": 0,
   Discharge: 1,
   Smite: 1,
-  Judgment: 1.55,
+  Judgment: 1.7,
 };
-function hit(g, side, h, t, skill, emit) {
+const lowest = (team) =>
+  living(team).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+function hit(g, side, h, t, skill, emit, opts = {}) {
   const team = g.teams[side],
     enemy = g.teams[1 - side],
-    marked = t.mark;
+    active = skill !== "Counter" && skill !== "Barrier Pulse",
+    single = active && skill !== "Flare",
+    original = t;
+  if (single && enemy[0].hp && enemy[0].round.taunt) t = enemy[0];
+  const redirected = t !== original,
+    marked = t.mark && active;
+  const favored = opts.favored !== false;
   const p = physical.has(skill);
   let raw =
     (p ? h.atk : h.mag) *
-    (skill === "Ambush" ? (marked ? 1.65 : 1.1) : power[skill]);
+    (skill === "Ambush" ? (marked ? 1.8 : 1.3) : (opts.power ?? power[skill]));
+  raw += opts.bonus || 0;
+  if (skill === "Barrier Pulse") raw = 6;
   if (skill === "Smite" || skill === "Judgment")
     raw += 3 * (h.cards.votive || 0);
   if (skill === "Discharge" && team.some((a) => a.ward && a.hp)) raw += 8;
   if (marked) {
     raw +=
       (h.cards.pursuit ? 9 : 0) +
-      (skill === "Judgment" && h.cards.verdict ? 10 : 0);
-    const exploit = team.find((a) => a.cards.exploit);
+      (skill === "Judgment" ? 6 + (h.cards.verdict ? 10 : 0) : 0);
+    const exploit = team.find((a) => a.hp && a.cards.exploit);
     if (exploit && !exploit.round.exploit) {
       raw += 8;
       exploit.round.exploit = true;
     }
     t.mark = false;
   }
-  if (h.cards.comet && !h.used.comet) {
+  if (active && favored && h.cards.comet && !h.used.comet) {
     raw += 18;
     t.mark = true;
     h.used.comet = true;
@@ -222,12 +244,25 @@ function hit(g, side, h, t, skill, emit) {
     h.round.execution = true;
   }
   let amount =
-    Math.max(1, Math.round(raw - 0.55 * (p ? t.def : t.res))) + h.bless;
-  h.bless = 0;
+    Math.max(1, Math.round(raw - 0.55 * (p ? t.def : t.res))) +
+    (marked ? 4 : 0);
+  if (active && favored) {
+    amount += h.bless + (h.coverReady ? 6 : 0);
+    h.bless = 0;
+    h.coverReady = false;
+  }
+  if (redirected) amount = Math.max(1, Math.round(amount * 0.65));
+  if (t.round.evade) {
+    amount = Math.max(1, Math.round(amount * 0.65));
+    t.round.evade = false;
+    if (t.cards.shadowstep) h.mark = true;
+  }
+  if (redirected && original.cards.cover) original.coverReady = true;
   if (t.cards.iron && t.hp < t.max / 2) amount = Math.max(1, amount - 5);
   const guard = t.guard?.source.hp ? t.guard : null;
   if (guard)
-    amount = Math.max(1, Math.round(amount * (guard.counter ? 0.7 : 0.55)));
+    amount = Math.max(1, Math.round(amount * (guard.counter ? 0.7 : 0.35)));
+
   const barrier = t.ward;
   let absorbed = 0,
     reflect = 0,
@@ -239,10 +274,15 @@ function hit(g, side, h, t, skill, emit) {
     amount -= absorbed;
     const mage = enemy[1];
     if (!barrier.left) {
-      if (mage.cards.mirror && !mage.round.mirror) {
+      if (mage.hp && mage.cards.mirror && !mage.round.mirror) {
         reflect = Math.round(barrier.absorbed * 0.5);
         mage.round.mirror = true;
       }
+      for (const ally of living(enemy))
+        if (ally.cards.rally && !ally.round.rally) {
+          ally.round.rally = true;
+          for (const member of living(enemy)) member.rallySpeed = 3;
+        }
       t.ward = null;
     }
     if (
@@ -259,6 +299,19 @@ function hit(g, side, h, t, skill, emit) {
   }
   const loss = Math.min(t.hp, amount);
   t.hp -= loss;
+  if (redirected && t.hp && t.cards.stalwart && !t.round.stalwart) {
+    t.round.stalwart = true;
+    ward(t, t, 8);
+  }
+  if (
+    (h.cards.quarry && skill === "Slash") ||
+    (h.cards.prism && skill === "Smite") ||
+    (h.cards.sight && active && favored && !h.round.sight) ||
+    (h.cards.aim && single && !h.round.aim)
+  )
+    t.mark = true;
+  if (active && favored) h.round.sight = true;
+  if (single) h.round.aim = true;
   const from = [side, team.indexOf(h)],
     to = [1 - side, enemy.indexOf(t)];
   emit({
@@ -270,6 +323,10 @@ function hit(g, side, h, t, skill, emit) {
     absorbed,
     saved,
     defeated: !t.hp,
+    redirectedFrom: redirected
+      ? [1 - side, enemy.indexOf(original)]
+      : undefined,
+    volley: opts.volley,
   });
   if (absorbed && barrier.source.cards.feedback && t.hp) {
     const before = t.hp;
@@ -296,14 +353,25 @@ function hit(g, side, h, t, skill, emit) {
     });
   }
   if (
-    (h.cards.quarry && skill === "Slash") ||
-    (h.cards.cinder && skill === "Flare") ||
-    (h.cards.prism && skill === "Smite") ||
-    (h.cards.sight && !h.round.sight)
+    skill === "Judgment" &&
+    marked &&
+    h.cards.holyverdict &&
+    !h.round.holyverdict
   ) {
-    t.mark = true;
+    h.round.holyverdict = true;
+    const ally = lowest(team);
+    if (ally) {
+      const before = ally.hp;
+      heal(ally, 12);
+      emit({
+        from,
+        to: [side, team.indexOf(ally)],
+        skill: "Holy Verdict",
+        kind: "heal",
+        delta: ally.hp - before,
+      });
+    }
   }
-  h.round.sight = true;
   if (guard) {
     if (guard.source.cards.feint) h.mark = true;
     if (guard.source.cards.tempo)
@@ -325,12 +393,16 @@ export function resolve(g, plans, onEvent) {
       const action = plans[s][i],
         skill = h.skills[action?.slot];
       const targets = g.teams[skills[skill]?.[0] === "ally" ? s : 1 - s];
-      if (!skill || !targets[action.target]?.hp) throw Error("Invalid plan");
+      if (!skill) throw Error("Invalid plan");
+      const mode = skills[skill][0];
+      const target =
+        mode === "all" || mode === "self" ? h : targets[action.target];
+      if (!target?.hp) throw Error("Invalid plan");
       queue.push({
         s,
         h,
         skill,
-        t: targets[action.target],
+        t: target,
         speed:
           h.speed +
           h.bonusSpeed +
@@ -343,17 +415,53 @@ export function resolve(g, plans, onEvent) {
       b.speed - a.speed || ((a.s + g.round) % 2) - ((b.s + g.round) % 2),
   );
   for (const { s, h, skill, t } of queue) {
-    const targetSide = skills[skill][0] === "ally" ? s : 1 - s;
+    const mode = skills[skill][0];
+    const targetSide = mode === "enemy" ? 1 - s : s;
     const event = {
       from: [s, g.teams[s].indexOf(h)],
       to: [targetSide, g.teams[targetSide].indexOf(t)],
       skill,
     };
-    if (!h.hp || !t.hp) {
+    if (
+      !h.hp ||
+      (!t.hp &&
+        !(
+          mode === "enemy" &&
+          g.teams[1 - s][0].hp &&
+          g.teams[1 - s][0].round.taunt
+        ))
+    ) {
       emit({ ...event, kind: !h.hp ? "skipped" : "miss" });
       continue;
     }
-    if (skills[skill][0] === "enemy") {
+    if (mode === "all") {
+      const enemy = g.teams[1 - s],
+        targets = living(enemy).sort((a, b) => a.hp / a.max - b.hp / b.max);
+      const volley = targets.map((t) => [1 - s, enemy.indexOf(t)]);
+      targets.forEach((target, i) =>
+        hit(g, s, h, target, skill, emit, {
+          favored: i === 0,
+          volley: i === 0 ? volley : undefined,
+          bonus: i === 0 && targets.length >= 2 && h.cards.afterburn ? 3 : 0,
+          power: targets.length === 1 && h.cards.concentrate ? 1.15 : 0.65,
+        }),
+      );
+      if (h.cards.cinder) {
+        const survivor = lowest(enemy);
+        if (survivor) {
+          survivor.mark = true;
+          emit({
+            from: event.from,
+            to: [1 - s, enemy.indexOf(survivor)],
+            skill: "Cinder Seal",
+            kind: "mark",
+          });
+        }
+      }
+      continue;
+    }
+    if (mode === "enemy") {
+      if (skill === "Ambush") h.round.evade = true;
       hit(g, s, h, t, skill, emit);
       continue;
     }
@@ -361,7 +469,12 @@ export function resolve(g, plans, onEvent) {
     let effect = "";
     if (skill === "Guard" || skill === "Riposte") {
       t.guard = { source: h, counter: skill === "Riposte" };
+      if (t.cards.cover) t.coverReady = true;
       effect = "guards";
+    }
+    if (skill === "Taunt") {
+      h.round.taunt = true;
+      effect = "taunts";
     }
     if (skill === "Aegis") {
       ward(t, h, t.max * 0.25);
@@ -371,16 +484,21 @@ export function resolve(g, plans, onEvent) {
       const n = Math.round(h.mag * 0.9) + 5 * (h.cards.mercy || 0);
       const excess = Math.max(0, t.hp + n - t.max);
       heal(t, n);
-      if (h.cards.overflow) ward(t, h, excess);
+      if (h.cards.overflow || h.cards.prayer)
+        ward(t, h, (h.cards.prayer ? 5 : 0) + (h.cards.overflow ? excess : 0));
       effect = "heals";
     }
     if (skill === "Bless") {
-      t.bless = 8 + (h.cards.fervor ? 6 : 0);
+      t.bless = 12 + (h.cards.fervor ? 4 : 0);
+      ward(t, h, 6);
+      const other = lowest(g.teams[s].filter((a) => a !== t));
+      if (h.cards.doublebless && other) other.bless = Math.max(other.bless, 6);
       effect = "blesses";
     }
     if (skill === "Haste") {
-      t.nextSpeed = Math.max(t.nextSpeed, 8);
-      effect = "hastens";
+      t.nextSpeed = Math.max(t.nextSpeed, 10);
+      heal(t, 8);
+      effect = "heals";
     }
     emit({
       ...event,
@@ -389,6 +507,11 @@ export function resolve(g, plans, onEvent) {
       delta: t.hp - before,
       shield: t.ward?.left || 0,
     });
+    if (skill === "Aegis" && h.cards.pulse) {
+      const enemies = living(g.teams[1 - s]);
+      const target = enemies.find((a) => a.mark) || lowest(enemies);
+      if (target) hit(g, s, h, target, "Barrier Pulse", emit);
+    }
   }
   for (const h of g.teams.flat()) {
     h.guard = null;

@@ -35,7 +35,7 @@ test("combat frames preserve targets, HP at impact, and actual capped healing", 
   resolve(g, plans, (event) =>
     frames.push({ event, teams: snapshot(g.teams) }),
   );
-  assert.equal(frames.length, 6);
+  assert.equal(frames.length, 10);
   const mend = frames.find(
     (f) => f.event.skill === "Mend" && f.event.from[0] === 0,
   );
