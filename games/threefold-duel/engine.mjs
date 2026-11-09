@@ -1,5 +1,7 @@
 import { classes, cards, skills } from "./catalog.mjs";
 
+import { eventText } from "./events.mjs";
+
 const bases = [
   [72, 17, 8, 6, 4, 10, 4, "Slash", "Guard"],
   [55, 6, 4, 19, 8, 12, 5, "Spark", "Flare"],
@@ -186,7 +188,7 @@ const power = {
   Smite: 1,
   Judgment: 1.55,
 };
-function hit(g, side, h, t, skill, log) {
+function hit(g, side, h, t, skill, emit) {
   const team = g.teams[side],
     enemy = g.teams[1 - side],
     marked = t.mark;
@@ -257,26 +259,41 @@ function hit(g, side, h, t, skill, log) {
   }
   const loss = Math.min(t.hp, amount);
   t.hp -= loss;
-  log.push(
-    "P" +
-      (side + 1) +
-      " " +
-      h.name +
-      " · " +
-      skill +
-      " → " +
-      t.name +
-      " −" +
-      loss +
-      " HP" +
-      (absorbed ? " (" + absorbed + " shielded)" : "") +
-      (saved ? " · Sanctuary" : "") +
-      (!t.hp ? " · defeated" : ""),
-  );
-  if (absorbed && barrier.source.cards.feedback && t.hp) heal(t, 3);
+  const from = [side, team.indexOf(h)],
+    to = [1 - side, enemy.indexOf(t)];
+  emit({
+    from,
+    to,
+    skill,
+    kind: "damage",
+    delta: -loss,
+    absorbed,
+    saved,
+    defeated: !t.hp,
+  });
+  if (absorbed && barrier.source.cards.feedback && t.hp) {
+    const before = t.hp;
+    heal(t, 3);
+    if (t.hp > before)
+      emit({
+        from: [1 - side, enemy.indexOf(barrier.source)],
+        to,
+        skill: "Arcane Feedback",
+        kind: "heal",
+        delta: t.hp - before,
+      });
+  }
   if (reflect) {
+    const before = h.hp;
     h.hp = Math.max(0, h.hp - reflect);
-    log.push("Mirror Ward reflects " + reflect + " damage to " + h.name + ".");
+    emit({
+      from: [1 - side, 1],
+      to: from,
+      skill: "Mirror Ward",
+      kind: "damage",
+      delta: h.hp - before,
+      defeated: !h.hp,
+    });
   }
   if (
     (h.cards.quarry && skill === "Slash") ||
@@ -292,12 +309,16 @@ function hit(g, side, h, t, skill, log) {
     if (guard.source.cards.tempo)
       guard.source.nextSpeed = Math.max(guard.source.nextSpeed, 6);
     if (guard.counter && skill !== "Counter" && guard.source.hp && h.hp)
-      hit(g, 1 - side, guard.source, h, "Counter", log);
+      hit(g, 1 - side, guard.source, h, "Counter", emit);
   }
 }
-export function resolve(g, plans) {
-  const log = [],
+export function resolve(g, plans, onEvent) {
+  const events = [],
     queue = [];
+  const emit = (event) => {
+    events.push(event);
+    onEvent?.(event);
+  };
   for (const [s, team] of g.teams.entries())
     for (const [i, h] of team.entries()) {
       if (!h.hp) continue;
@@ -322,28 +343,21 @@ export function resolve(g, plans) {
       b.speed - a.speed || ((a.s + g.round) % 2) - ((b.s + g.round) % 2),
   );
   for (const { s, h, skill, t } of queue) {
-    if (!h.hp) {
-      log.push(
-        "P" + (s + 1) + " " + h.name + " · " + skill + " skipped (defeated).",
-      );
-      continue;
-    }
-    if (!t.hp) {
-      log.push(
-        "P" +
-          (s + 1) +
-          " " +
-          h.name +
-          " · " +
-          skill +
-          " misses its defeated target.",
-      );
+    const targetSide = skills[skill][0] === "ally" ? s : 1 - s;
+    const event = {
+      from: [s, g.teams[s].indexOf(h)],
+      to: [targetSide, g.teams[targetSide].indexOf(t)],
+      skill,
+    };
+    if (!h.hp || !t.hp) {
+      emit({ ...event, kind: !h.hp ? "skipped" : "miss" });
       continue;
     }
     if (skills[skill][0] === "enemy") {
-      hit(g, s, h, t, skill, log);
+      hit(g, s, h, t, skill, emit);
       continue;
     }
+    const before = t.hp;
     let effect = "";
     if (skill === "Guard" || skill === "Riposte") {
       t.guard = { source: h, counter: skill === "Riposte" };
@@ -368,19 +382,13 @@ export function resolve(g, plans) {
       t.nextSpeed = Math.max(t.nextSpeed, 8);
       effect = "hastens";
     }
-    log.push(
-      "P" +
-        (s + 1) +
-        " " +
-        h.name +
-        " · " +
-        skill +
-        " " +
-        effect +
-        " " +
-        t.name +
-        ".",
-    );
+    emit({
+      ...event,
+      kind:
+        effect === "heals" ? "heal" : effect === "shields" ? "ward" : "support",
+      delta: t.hp - before,
+      shield: t.ward?.left || 0,
+    });
   }
   for (const h of g.teams.flat()) {
     h.guard = null;
@@ -389,6 +397,7 @@ export function resolve(g, plans) {
   }
   const alive = g.teams.map((t) => living(t).length > 0);
   if (!alive[0] || !alive[1]) g.winner = alive[0] ? 0 : alive[1] ? 1 : "draw";
-  g.history.push({ round: g.round, log });
+  const log = events.map((event) => eventText(event));
+  g.history.push({ round: g.round, log, events });
   return log;
 }

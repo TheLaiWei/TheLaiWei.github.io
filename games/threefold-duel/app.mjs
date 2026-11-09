@@ -1,3 +1,16 @@
+import { snapshot, playBattle } from "./battle.mjs";
+import { eventText } from "./events.mjs";
+import {
+  zh,
+  t,
+  setLanguage,
+  preferredLanguage,
+  cardName,
+  cardText,
+  skillText,
+  draftText,
+} from "./language.mjs";
+setLanguage(preferredLanguage());
 import {
   classes,
   cards,
@@ -28,18 +41,20 @@ const paths = [
 const baseArt = ["fighter-guardian", "mage-elementalist", "priest-healer"];
 const image = (name, alt = "") =>
   '<img src="./art/' + name + '.svg" alt="' + alt + '">';
-$("#paths").innerHTML = classes
-  .map(
-    (name, i) =>
-      "<article>" +
-      image(baseArt[i]) +
-      "<div><h3>" +
-      name +
-      "</h3><p>" +
-      paths[i].join(" · ") +
-      "</p></div></article>",
-  )
-  .join("");
+function drawPaths() {
+  $("#paths").innerHTML = classes
+    .map(
+      (name, i) =>
+        "<article>" +
+        image(baseArt[i]) +
+        "<div><h3>" +
+        t(name) +
+        "</h3><p>" +
+        paths[i].map(t).join(" · ") +
+        "</p></div></article>",
+    )
+    .join("");
+}
 const btn = (action, label, cls = "", disabled = false) =>
   '<button type="button" data-action="' +
   action +
@@ -48,29 +63,44 @@ const btn = (action, label, cls = "", disabled = false) =>
   '" ' +
   (disabled ? "disabled" : "") +
   ">" +
-  label +
+  t(label) +
   "</button>";
 function dialog(title, html, side = 0) {
   info.classList.toggle("reverse", side === 1);
-  $("#info-body").innerHTML = "<h2>" + title + "</h2>" + html;
+  $("#info-body").innerHTML = "<h2>" + t(title) + "</h2>" + html;
   if (!info.open) info.showModal();
 }
 info.querySelector(".exit").onclick = () => info.close();
-const help =
-  "<ol><li>Place your phone between you. Shield your edge with one hand and open your private tray. Choose a skill and target for every living hero.</li><li>Lock both plans. Faster actions resolve first. Guard and barriers have priority. Speed ties alternate favored seats each round. An action aimed at a fallen target misses.</li><li>Read the results, then privately draft one of three cards. Both picks are revealed together. Drafted passives last the match. A replacement can change your hero’s role.</li><li>Defeat all three enemies to win.</li></ol>";
-$("#rules").onclick = () => dialog("How to play", help);
+const instructions = [
+  "Place your phone between you. Shield your edge with one hand and open your private tray. Choose a skill and target for every living hero.",
+  "Lock both plans. Faster actions resolve first. Guard and barriers have priority. Speed ties alternate favored seats each round. An action aimed at a fallen target misses.",
+  "Read the results, then privately draft one of three cards. Both picks are revealed together. Drafted passives last the match. A replacement can change your hero\u2019s role.",
+  "Defeat all three enemies to win.",
+];
+$("#rules").onclick = () =>
+  dialog(
+    "How to play",
+    "<ol>" +
+      instructions.map((line) => "<li>" + t(line) + "</li>").join("") +
+      "</ol>",
+  );
 const summary = (c) =>
-  c.description +
+  cardText(c) +
   " " +
   (c.skill
-    ? "Replaces one skill."
+    ? t("Replaces one skill.")
     : c.limit === Infinity
-      ? "Unlimited stacks."
-      : "Max " +
-        c.limit +
-        " per " +
-        (c.id === "exploit" ? "party" : "hero") +
-        ".");
+      ? t("Unlimited stacks.")
+      : zh
+        ? (c.id === "exploit" ? "每队" : "每名英雄") +
+          "最多叠加 " +
+          c.limit +
+          " 次。"
+        : "Max " +
+          c.limit +
+          " per " +
+          (c.id === "exploit" ? "party" : "hero") +
+          ".");
 const illustrations = {
   Ambush: "fighter-assassin",
   Riposte: "fighter-duelist",
@@ -113,11 +143,11 @@ function cardFace(c) {
     '">' +
     image(icon) +
     "<div><small>" +
-    qualities[c.tier] +
+    t(qualities[c.tier]) +
     " · " +
-    c.group +
+    t(c.group) +
     "</small><strong>" +
-    c.name +
+    cardName(c) +
     "</strong><p>" +
     summary(c) +
     "</p></div></div>"
@@ -131,8 +161,10 @@ $("#library").onclick = () =>
       .map(
         (n) =>
           "<details><summary>" +
-          (n === "Any" ? "Shared party" : n) +
-          " · 12 cards</summary>" +
+          t(n === "Any" ? "Shared party" : n) +
+          " · " +
+          t("12 cards") +
+          "</summary>" +
           cards
             .filter((c) => c.group === n)
             .map(cardFace)
@@ -177,10 +209,10 @@ $("#start").onclick = () => {
 function publicHero(h, i) {
   const status = [
     h.ward ? "◇" + h.ward.left : "",
-    h.mark ? "Marked" : "",
-    h.guard?.source.hp ? "Guard" : "",
-    h.bless ? "Blessed" : "",
-    h.bonusSpeed || h.nextSpeed ? "Haste" : "",
+    h.mark ? t("Marked") : "",
+    h.guard?.source.hp ? t("Guard") : "",
+    h.bless ? t("Blessed") : "",
+    h.bonusSpeed || h.nextSpeed ? t("Haste") : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -188,7 +220,7 @@ function publicHero(h, i) {
     "hero-" + i,
     image(art(h)) +
       "<span>" +
-      h.name +
+      t(h.name) +
       " <b>" +
       h.hp +
       "/" +
@@ -230,12 +262,12 @@ function privatePlan(s) {
   const skill = plan && skills[h.skills[plan.slot]];
   const targets = skill
     ? g.teams[skill[0] === "ally" ? s : 1 - s]
-        .map((t, j) =>
+        .map((tgt, j) =>
           btn(
             "target-" + j,
-            t.name + " " + t.hp,
+            t(tgt.name) + " " + tgt.hp,
             "choice " + (plan.target === j ? "selected" : ""),
-            !t.hp,
+            !tgt.hp,
           ),
         )
         .join("")
@@ -249,7 +281,7 @@ function privatePlan(s) {
       .map((a, j) =>
         btn(
           "actor-" + j,
-          a.name + (Number.isInteger(plans[s][j]?.target) ? " ✓" : ""),
+          t(a.name) + (Number.isInteger(plans[s][j]?.target) ? " ✓" : ""),
           i === j ? "selected" : "",
           !a.hp,
         ),
@@ -260,13 +292,13 @@ function privatePlan(s) {
     "</div>" +
     (skill
       ? '<p class="note">' +
-        skill[2] +
-        " Choose " +
-        (skill[0] === "ally" ? "an ally" : "an enemy") +
-        '.</p><div class="options">' +
+        skillText(h.skills[plan.slot]) +
+        " " +
+        t(skill[0] === "ally" ? "Choose an ally." : "Choose an enemy.") +
+        '</p><div class="options">' +
         targets +
         "</div>"
-      : '<p class="note">Choose a skill.</p>') +
+      : '<p class="note">' + t("Choose a skill.") + "</p>") +
     btn("lock", "Lock plan", "seal", !ready)
   );
 }
@@ -302,9 +334,14 @@ function privateDraft(s) {
         "</div>" +
         (Number.isInteger(pick.target)
           ? '<p class="note"><b>' +
-            g.teams[s][pick.target].name +
+            t(g.teams[s][pick.target].name) +
             "</b> · " +
-            (replacement(g.teams[s][pick.target], c) || c.description) +
+            (replacement(g.teams[s][pick.target], c, {
+              skillName: t,
+              skillText,
+              cardName,
+              inactive: t("Inactive after swap:"),
+            }) || cardText(c)) +
             "</p>"
           : "")
       : "") +
@@ -316,14 +353,19 @@ function tray(s) {
   if (phase === "over")
     body =
       "<h3>" +
-      (g.winner === "draw" ? "Draw" : g.winner === s ? "Victory" : "Defeat") +
+      t(g.winner === "draw" ? "Draw" : g.winner === s ? "Victory" : "Defeat") +
       "</h3>" +
+      btn("replay", "Replay round", "choice") +
+      " " +
       btn("restart", "Return to game room", "seal");
   else if (["combat", "reveal"].includes(phase))
     body =
       "<h3>" +
-      (phase === "combat" ? "Combat resolved" : "Cards revealed") +
+      t(phase === "combat" ? "Combat resolved" : "Cards revealed") +
       "</h3>" +
+      (phase === "combat"
+        ? btn("replay", "Replay round", "choice") + " "
+        : "") +
       btn("log", "Read results", "choice") +
       " " +
       btn(
@@ -333,11 +375,15 @@ function tray(s) {
       );
   else if (locked[s])
     body =
-      '<h3>Locked in</h3><p class="note">Waiting for the other player.</p>';
+      "<h3>" +
+      t("Locked in") +
+      '</h3><p class="note">' +
+      t("Waiting for the other player.") +
+      "</p>";
   else if (!opened[s])
     body =
       "<h3>" +
-      (phase === "plan" ? "Plan your moves" : "Choose a buff") +
+      t(phase === "plan" ? "Plan your moves" : "Choose a buff") +
       "</h3>" +
       btn(
         "open",
@@ -351,10 +397,13 @@ function tray(s) {
     s +
     '" class="tray ' +
     (s ? "reverse" : "") +
-    '"><header><strong>Player ' +
+    '"><header><strong>' +
+    t("Player") +
+    " " +
     (s + 1) +
     "</strong>" +
-    btn("luck", "Luck " + luck(g.teams[s]), "link") +
+    btn("language", zh ? "English" : "简体中文", "link") +
+    btn("luck", t("Luck") + " " + luck(g.teams[s]), "link") +
     (opened[s] ? btn("hide", "Hide", "link") : "") +
     '</header><div class="tray-content">' +
     body +
@@ -362,27 +411,34 @@ function tray(s) {
   );
 }
 function render() {
+  if (phase === "playback") return;
   table.innerHTML =
     tray(1) +
     '<section class="field">' +
     partyBar(1) +
-    '<div class="roundline"><b>Round ' +
+    '<div class="roundline"><b>' +
+    t("Round") +
+    " " +
     g.round +
     "</b><span>" +
-    {
-      plan: "Secret planning",
-      combat: "Combat results",
-      draft: "Private draft",
-      reveal: "Draft results",
-      over: "Duel complete",
-    }[phase] +
+    t(
+      {
+        plan: "Secret planning",
+        combat: "Combat results",
+        draft: "Private draft",
+        reveal: "Draft results",
+        over: "Duel complete",
+      }[phase],
+    ) +
     "</span>" +
     btn("log", "Log", "link") +
     '</div><div class="ticker">' +
     (phase === "reveal"
-      ? results.join("<br>")
-      : results.slice(-2).join("<br>") ||
-        "Choose one skill per hero, then lock in.") +
+      ? results.map(draftText).join("<br>")
+      : results
+          .slice(-2)
+          .map((line) => (line.id ? draftText(line) : eventText(line, t, zh)))
+          .join("<br>") || t("Choose one skill per hero, then lock in.")) +
     "</div>" +
     partyBar(0) +
     "</section>" +
@@ -394,20 +450,16 @@ function lock(s) {
   seat = null;
   if (!locked.every(Boolean)) return;
   if (phase === "plan") {
-    results = resolve(g, plans);
-    phase = g.winner === null ? "combat" : "over";
+    battle = { initial: snapshot(g.teams), steps: [] };
+    resolve(g, plans, (event) =>
+      battle.steps.push({ event, after: snapshot(g.teams) }),
+    );
+    results = g.history.at(-1).events;
+    launchPlayback();
   } else {
-    results = picks.map(({ card, target }, p) => {
-      applyCard(g.teams[p], card, target);
-      return (
-        "P" +
-        (p + 1) +
-        " · " +
-        g.teams[p][target].name +
-        " gains " +
-        card.name +
-        "."
-      );
+    results = picks.map(({ card, target }, side) => {
+      applyCard(g.teams[side], card, target);
+      return { side, hero: g.teams[side][target].name, id: card.id };
     });
     g.history.at(-1).picks = results.slice();
     phase = "reveal";
@@ -417,6 +469,18 @@ function action(code, s) {
   const [type, raw] = code.split("-"),
     n = Number(raw),
     team = g.teams[s];
+  if (type === "skip") {
+    finishPlayback();
+    return;
+  }
+  if (type === "replay") {
+    launchPlayback();
+    return;
+  }
+  if (type === "language") {
+    switchLanguage();
+    return;
+  }
   if (type === "open") {
     if (seat === null) {
       seat = s;
@@ -463,30 +527,37 @@ function action(code, s) {
             .reverse()
             .map(
               (x) =>
-                "<h3>Round " +
+                "<h3>" +
+                t("Round") +
+                " " +
                 x.round +
                 "</h3><ul>" +
-                x.log
-                  .concat(x.picks || [])
+                x.events
+                  .map((ev) => eventText(ev, t, zh))
+                  .concat((x.picks || []).map(draftText))
                   .map((y) => "<li>" + y + "</li>")
                   .join("") +
                 "</ul>",
             )
             .join("")
-        : "<p>No combat resolved yet.</p>",
+        : "<p>" + t("No combat resolved yet.") + "</p>",
       s,
     );
   if (type === "luck") {
     dialog(
-      "Party Luck · " + luck(team),
+      t("Party Luck") + " · " + luck(team),
       "<p>" +
-        team.map((h) => h.name + " " + h.luck).join(" + ") +
-        "</p><p>Current chance for the first offer. Later rolls exclude cards already drawn.</p>" +
+        team.map((h) => t(h.name) + " " + h.luck).join(" + ") +
+        "</p><p>" +
+        t(
+          "Current chance for the first offer. Later rolls exclude cards already drawn.",
+        ) +
+        "</p>" +
         eligibleOdds(team)
           .map(
             (v, i) =>
               "<p>" +
-              qualities[i] +
+              t(qualities[i]) +
               " <b>" +
               Number(v.toFixed(1)) +
               "%</b></p>",
@@ -498,31 +569,47 @@ function action(code, s) {
   if (type === "hero") {
     const h = team[n];
     dialog(
-      "P" + (s + 1) + " · " + h.name,
+      (zh ? "玩家" : "P") + (s + 1) + " · " + t(h.name),
       image(art(h)) +
-        "<p>HP " +
+        "<p>" +
+        t("HP") +
+        " " +
         h.hp +
         "/" +
         h.max +
-        " · ATK " +
+        " · " +
+        t("ATK") +
+        " " +
         h.atk +
-        " · DEF " +
+        " · " +
+        t("DEF") +
+        " " +
         h.def +
-        " · Magic " +
+        " · " +
+        t("Magic") +
+        " " +
         h.mag +
-        " · Resist " +
+        " · " +
+        t("Resist") +
+        " " +
         h.res +
-        " · Speed " +
+        " · " +
+        t("Speed") +
+        " " +
         (h.speed + h.bonusSpeed) +
-        " · Luck " +
+        " · " +
+        t("Luck") +
+        " " +
         h.luck +
         "</p>" +
         h.skills
-          .map((name) => "<p><b>" + name + "</b> — " + skills[name][2] + "</p>")
+          .map(
+            (name) => "<p><b>" + t(name) + "</b> — " + skillText(name) + "</p>",
+          )
           .join("") +
         "<p>" +
         Object.entries(h.cards)
-          .map(([id, k]) => byId[id].name + (k > 1 ? " ×" + k : ""))
+          .map(([id, k]) => cardName(byId[id]) + (k > 1 ? " ×" + k : ""))
           .join(" · ") +
         "</p>",
       s,
@@ -555,3 +642,63 @@ window.addEventListener("blur", conceal);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) conceal();
 });
+
+let battle, playbackController;
+function finishPlayback() {
+  if (phase !== "playback") return;
+  playbackController.abort();
+  phase = g.winner === null ? "combat" : "over";
+  render();
+}
+function launchPlayback() {
+  phase = "playback";
+  playbackController = new AbortController();
+  playBattle(table, g.round, battle, {
+    t,
+    zh,
+    signal: playbackController.signal,
+    onDone: finishPlayback,
+  });
+}
+// Only the landing page contains static copy. Keep its original text for switching back.
+const walker = document.createTreeWalker($("#welcome"), NodeFilter.SHOW_TEXT);
+const originals = [];
+while (walker.nextNode()) {
+  const node = walker.currentNode;
+  if (node.parentElement.closest("#language,#paths")) continue;
+  const key = node.textContent.trim().replace(/\s+/g, " ");
+  if (key) originals.push([node, key, node.textContent]);
+}
+const attrs = [...document.querySelectorAll("[alt],[aria-label]")].flatMap(
+  (el) =>
+    ["alt", "aria-label"]
+      .filter((k) => el.hasAttribute(k))
+      .map((k) => [el, k, el.getAttribute(k)]),
+);
+function drawLanguage() {
+  for (const [node, key, original] of originals)
+    node.textContent = zh
+      ? original.replace(original.trim(), t(key))
+      : original;
+  for (const [el, key, en] of attrs) el.setAttribute(key, t(en));
+  document.title = t("Threefold Duel · Lai Wei");
+  document.querySelector('meta[name="description"]').content = t(
+    "A face-to-face fantasy tactics game for two players on one phone.",
+  );
+  $("#language").textContent = zh ? "English" : "简体中文";
+  drawPaths();
+  if (g && !table.hidden) render();
+}
+function switchLanguage() {
+  const value = zh ? "en" : "zh";
+  setLanguage(value);
+  try {
+    localStorage.setItem("duel-lang", value);
+  } catch {}
+  const url = new URL(location.href);
+  url.searchParams.set("lang", value);
+  history.replaceState(null, "", url);
+  drawLanguage();
+}
+$("#language").onclick = switchLanguage;
+drawLanguage();

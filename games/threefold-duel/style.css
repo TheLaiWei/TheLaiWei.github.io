@@ -586,3 +586,20 @@ dialog img {
     min-height: 32px;
   }
 }
+.lang {
+  margin-left: 10px;
+  font-size: 13px;
+  border-color: #8b9274;
+  background: transparent;
+  padding: 6px 11px;
+}
+nav > span {
+  margin-left: auto;
+}
+html[lang="zh-Hans"] .copy h1 {
+  letter-spacing: 0.015em;
+  line-height: 0.99;
+}
+html[lang="zh-Hans"] .tray header {
+  letter-spacing: 0.02em;
+}
