@@ -58,6 +58,11 @@ ninja.data = [{
           description: "Two people, one phone. A small heads-up Texas Hold’em game with virtual chips.",
           section: "Projects",handler: () => {
               window.location.href = "/projects/poker.html";
+            },},{id: "projects-threefold-duel",
+          title: 'Threefold Duel',
+          description: "Draft a party of three heroes and duel a friend face-to-face on one phone.",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/threefold-duel.html";
             },},{
         id: 'social-cv',
         title: 'CV',
