@@ -357,7 +357,16 @@ export const dependencies = {
   verdict: ["Judgment"],
   prism: ["Smite"],
 };
-export function replacement(hero, card) {
+export function replacement(
+  hero,
+  card,
+  {
+    skillName = (s) => s,
+    skillText = (s) => skills[s][2],
+    cardName = (c) => c.name,
+    inactive = "Inactive after swap:",
+  } = {},
+) {
   if (!card.skill) return "";
   const future = hero.skills.slice();
   future[card.slot] = card.skill;
@@ -367,10 +376,10 @@ export function replacement(hero, card) {
       !dependencies[id].some((s) => future.includes(s)),
   );
   return [
-    hero.skills[card.slot] + " → " + card.skill,
-    skills[card.skill][2],
+    skillName(hero.skills[card.slot]) + " → " + skillName(card.skill),
+    skillText(card.skill),
     lost.length
-      ? "Inactive after swap: " + lost.map((id) => byId[id].name).join(", ")
+      ? inactive + " " + lost.map((id) => cardName(byId[id])).join(", ")
       : "",
   ]
     .filter(Boolean)
