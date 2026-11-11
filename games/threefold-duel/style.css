@@ -603,3 +603,36 @@ html[lang="zh-Hans"] .copy h1 {
 html[lang="zh-Hans"] .tray header {
   letter-spacing: 0.02em;
 }
+.forecast,
+.owned-card,
+.recipients {
+  display: block;
+  margin: 4px 0;
+  font-size: 12px;
+}
+.forecast small,
+.recipients,
+.owned-card > small {
+  color: var(--teal);
+}
+.forecast {
+  border-left: 2px solid var(--gold);
+  padding-left: 7px;
+}
+.owned-card + .owned-card {
+  margin-top: 8px;
+}
+.tray-content > img {
+  display: block;
+  height: 58px;
+}
+.tray-content > p,
+.tray-content li {
+  font-size: 13px;
+}
+.tray button {
+  touch-action: manipulation;
+}
+.tray-content h4 {
+  margin: 6px 0;
+}

@@ -27,9 +27,17 @@ function makesWard(h) {
     (c.stalwart && has(h, "Taunt"))
   );
 }
-export function supports(team, h, c) {
+export function supports(team, h, c, foes) {
   const allies = team.filter((a) => a.hp > 0);
   if (dependencies[c.id] && !has(h, ...dependencies[c.id])) return false;
+  if (["taunt", "stalwart", "doublebless"].includes(c.id) && allies.length < 2)
+    return false;
+  if (
+    c.id === "afterburn" &&
+    foes &&
+    foes.filter((enemy) => enemy.hp > 0).length < 2
+  )
+    return false;
   switch (c.id) {
     case "thread":
     case "feedback":
