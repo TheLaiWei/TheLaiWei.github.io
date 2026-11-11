@@ -1,3 +1,4 @@
+import { skillPreview } from "./preview.mjs";
 import { snapshot, playBattle } from "./battle.mjs";
 import { supports } from "./synergy.mjs";
 import { eventText } from "./events.mjs";
@@ -204,7 +205,7 @@ let g,
   plans,
   locked,
   opened,
-  seat,
+  panels,
   offers,
   picks,
   cursor,
@@ -212,7 +213,7 @@ let g,
 function resetTrays() {
   locked = [false, false];
   opened = [false, false];
-  seat = null;
+  panels = [null, null];
   cursor = [0, 0];
 }
 function beginPlan() {
@@ -325,8 +326,9 @@ function privatePlan(s) {
     choices +
     "</div>" +
     (skill
-      ? '<p class="note">' +
+      ? '<div class="note">' +
         skillText(h.skills[plan.slot]) +
+        skillPreview(g, s, i, plan.slot) +
         " " +
         t(
           automatic
@@ -337,7 +339,7 @@ function privatePlan(s) {
               ? "Choose an ally."
               : "Choose an enemy.",
         ) +
-        '</p><div class="options">' +
+        '</div><div class="options">' +
         targets +
         "</div>"
       : '<p class="note">' + t("Choose a skill.") + "</p>") +
@@ -345,6 +347,11 @@ function privatePlan(s) {
   );
 }
 function privateDraft(s) {
+  const previous = offers[s];
+  if (previous.some((c) => !eligible(g.teams[s], c, g.teams[1 - s]).length)) {
+    offers[s] = offer(g.teams[s], Math.random, g.teams[1 - s], previous);
+    if (!offers[s].includes(picks[s]?.card)) picks[s] = null;
+  }
   const pick = picks[s],
     c = pick?.card;
   const hero = g.teams[s][pick?.target];
@@ -393,6 +400,13 @@ function privateDraft(s) {
           i +
           '">' +
           cardFace(c) +
+          '<small class="recipients">' +
+          (zh ? "可选英雄" : "Eligible heroes") +
+          " · " +
+          eligible(g.teams[s], c, g.teams[1 - s])
+            .map((j) => t(g.teams[s][j].name))
+            .join(" / ") +
+          "</small>" +
           "</button>",
       )
       .join("") +
@@ -449,7 +463,14 @@ function privateDraft(s) {
 }
 function tray(s) {
   let body = "";
-  if (phase === "over")
+  if (panels[s])
+    body =
+      btn("closepanel", zh ? "返回" : "Back", "choice") +
+      "<h3>" +
+      t(panels[s].title) +
+      "</h3>" +
+      panels[s].html;
+  else if (phase === "over")
     body =
       "<h3>" +
       t(g.winner === "draw" ? "Draw" : g.winner === s ? "Victory" : "Defeat") +
@@ -488,7 +509,7 @@ function tray(s) {
         "open",
         phase === "plan" ? "Open private plan" : "Open private draft",
         "seal",
-        seat !== null,
+        false,
       );
   else body = phase === "plan" ? privatePlan(s) : privateDraft(s);
   return (
@@ -546,8 +567,9 @@ function render() {
 function lock(s) {
   locked[s] = true;
   opened[s] = false;
-  seat = null;
+  panels[s] = null;
   if (!locked.every(Boolean)) return;
+  panels = [null, null];
   if (phase === "plan") {
     battle = { initial: snapshot(g.teams), steps: [] };
     resolve(g, plans, (event) =>
@@ -563,6 +585,68 @@ function lock(s) {
     g.history.at(-1).picks = results.slice();
     phase = "reveal";
   }
+}
+function heroCards(h, s) {
+  const entries = Object.entries(h.cards);
+  if (!entries.length)
+    return (
+      '<p class="note">' +
+      (zh ? "尚未选牌。" : "No cards drafted yet.") +
+      "</p>"
+    );
+  return entries
+    .map(([id, k]) => {
+      const c = byId[id],
+        rounds = g.history
+          .filter((r) =>
+            r.picks?.some(
+              (p) => p.side === s && p.hero === h.name && p.id === id,
+            ),
+          )
+          .map((r) => r.round);
+      const active = c.skill
+        ? h.skills.includes(c.skill)
+        : supports(g.teams[s], h, c, g.teams[1 - s]);
+      const state = c.skill
+        ? active
+          ? zh
+            ? "已装备"
+            : "Equipped"
+          : zh
+            ? "已替换"
+            : "Replaced"
+        : !active
+          ? zh
+            ? "联动未激活"
+            : "Synergy inactive"
+          : "";
+      return (
+        '<div class="owned-card">' +
+        cardFace(c) +
+        "<small>" +
+        [
+          k > 1 ? "×" + k : "",
+          state,
+          rounds.length ? t("Round") + " " + rounds.join(", ") : "",
+        ]
+          .filter(Boolean)
+          .join(" · ") +
+        "</small>" +
+        (c.skill ? '<p class="note">' + skillText(c.skill) + "</p>" : "") +
+        "</div>"
+      );
+    })
+    .join("");
+}
+function redrawSide(s, resetScroll = false) {
+  const old = table.querySelector('.tray[data-side="' + s + '"]');
+  if (!old) return;
+  const scroll = old.querySelector(".tray-content").scrollTop;
+  old.outerHTML = tray(s);
+  if (!resetScroll)
+    table.querySelector(
+      '.tray[data-side="' + s + '"] .tray-content',
+    ).scrollTop = scroll;
 }
 function action(code, s) {
   const [type, raw] = code.split("-"),
@@ -580,14 +664,11 @@ function action(code, s) {
     switchLanguage();
     return;
   }
-  if (type === "open") {
-    if (seat === null) {
-      seat = s;
-      opened[s] = true;
-    }
-  }
+  const previousPhase = phase;
+  if (type === "closepanel") panels[s] = null;
+  if (type === "open" && !locked[s]) opened[s] = true;
   if (type === "hide") {
-    seat = null;
+    panels[s] = null;
     opened[s] = false;
   }
   if (type === "actor") cursor[s] = n;
@@ -608,7 +689,7 @@ function action(code, s) {
   }
   if (type === "card") {
     const card = offers[s][n],
-      targets = eligible(team, card);
+      targets = eligible(team, card, g.teams[1 - s]);
     picks[s] = { card, target: targets.length === 1 ? targets[0] : undefined };
   }
   if (type === "recipient") picks[s].target = n;
@@ -625,7 +706,9 @@ function action(code, s) {
   if (type === "continue") {
     if (phase === "combat") {
       phase = "draft";
-      offers = g.teams.map((t) => offer(t));
+      offers = g.teams.map((team, side) =>
+        offer(team, Math.random, g.teams[1 - side]),
+      );
       picks = [null, null];
       resetTrays();
     } else if (phase === "reveal") {
@@ -633,8 +716,11 @@ function action(code, s) {
       beginPlan();
     }
   }
+  function showPanel(title, html) {
+    panels[s] = { title, html };
+  }
   if (type === "log")
-    dialog(
+    showPanel(
       "Combat log",
       g.history.length
         ? g.history
@@ -659,7 +745,7 @@ function action(code, s) {
       s,
     );
   if (type === "luck") {
-    dialog(
+    showPanel(
       t("Party Luck") + " · " + luck(team),
       "<p>" +
         team.map((h) => t(h.name) + " " + h.luck).join(" + ") +
@@ -668,7 +754,7 @@ function action(code, s) {
           "Current chance for the first offer. Later rolls exclude cards already drawn.",
         ) +
         "</p>" +
-        eligibleOdds(team)
+        eligibleOdds(team, g.teams[1 - s])
           .map(
             (v, i) =>
               "<p>" +
@@ -683,7 +769,7 @@ function action(code, s) {
   }
   if (type === "hero") {
     const h = team[n];
-    dialog(
+    showPanel(
       (zh ? "玩家" : "P") + (s + 1) + " · " + t(h.name),
       image(art(h)) +
         "<p>" +
@@ -719,14 +805,19 @@ function action(code, s) {
         "</p>" +
         h.skills
           .map(
-            (name) => "<p><b>" + t(name) + "</b> — " + skillText(name) + "</p>",
+            (name, slot) =>
+              "<p><b>" +
+              t(name) +
+              "</b> — " +
+              skillText(name) +
+              "</p>" +
+              skillPreview(g, s, n, slot),
           )
           .join("") +
-        "<p>" +
-        Object.entries(h.cards)
-          .map(([id, k]) => cardName(byId[id]) + (k > 1 ? " ×" + k : ""))
-          .join(" · ") +
-        "</p>",
+        "<h4>" +
+        (zh ? "已选卡牌" : "Drafted cards") +
+        "</h4>" +
+        heroCards(h, s),
       s,
     );
   }
@@ -736,20 +827,52 @@ function action(code, s) {
     document.body.classList.remove("playing");
     return;
   }
-  render();
+  if (phase === previousPhase)
+    redrawSide(
+      s,
+      ["hero", "luck", "log", "closepanel", "lock", "open"].includes(type),
+    );
+  else render();
 }
-table.addEventListener("click", (e) => {
-  const button = e.target.closest("[data-action]");
-  if (!button) return;
+function activate(button) {
+  if (!button?.isConnected || button.disabled) return;
   action(
     button.dataset.action,
     Number(button.closest("[data-side]")?.dataset.side || 0),
   );
+}
+const touches = new Map();
+table.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "touch") {
+    const button = e.target.closest("[data-action]");
+    if (button)
+      touches.set(e.pointerId, { button, x: e.clientX, y: e.clientY });
+  }
+});
+table.addEventListener("pointercancel", (e) => touches.delete(e.pointerId));
+table.addEventListener("pointerup", (e) => {
+  const tap = touches.get(e.pointerId);
+  touches.delete(e.pointerId);
+  if (!tap) return;
+  if (
+    Math.hypot(tap.x - e.clientX, tap.y - e.clientY) < 12 &&
+    document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest("[data-action]") === tap.button
+  ) {
+    e.preventDefault();
+    activate(tap.button);
+  }
+});
+table.addEventListener("click", (e) => {
+  if (e.pointerType === "touch" || e.sourceCapabilities?.firesTouchEvents)
+    return;
+  activate(e.target.closest("[data-action]"));
 });
 function conceal() {
-  if (g && seat !== null) {
+  if (g && opened.some(Boolean)) {
     opened = [false, false];
-    seat = null;
+    panels = [null, null];
     render();
   }
 }
@@ -805,6 +928,7 @@ function drawLanguage() {
   if (g && !table.hidden) render();
 }
 function switchLanguage() {
+  if (panels) panels = [null, null];
   const value = zh ? "en" : "zh";
   setLanguage(value);
   try {

@@ -49,7 +49,7 @@ export function odds(value) {
     i = Math.min(1, Math.floor(n));
   return anchors[i].map((v, j) => v + (anchors[i + 1][j] - v) * (n - i));
 }
-export function eligible(team, c) {
+export function eligible(team, c, foes) {
   return team
     .map((h, i) => ({ h, i }))
     .filter(
@@ -59,27 +59,33 @@ export function eligible(team, c) {
         (c.skill
           ? slotsFor(h, c).length > 0
           : (h.cards[c.id] || 0) < c.limit) &&
-        supports(team, h, c) &&
+        supports(team, h, c, foes) &&
         (c.id !== "luck" || h.luck < 10) &&
         (c.id !== "exploit" || !team.some((member) => member.cards.exploit)),
     )
     .map(({ i }) => i);
 }
-export function eligibleOdds(team) {
+export function eligibleOdds(team, foes) {
   const weights = odds(luck(team)).map((value, tier) =>
-    cards.some((c) => c.tier === tier && eligible(team, c).length) ? value : 0,
+    cards.some((c) => c.tier === tier && eligible(team, c, foes).length)
+      ? value
+      : 0,
   );
   const sum = weights.reduce((a, b) => a + b, 0);
   return weights.map((n) => (sum ? (100 * n) / sum : 0));
 }
-export function offer(team, rng = Math.random) {
-  const chosen = [],
+export function offer(team, rng = Math.random, foes, previous = []) {
+  const chosen = [...new Set(previous)]
+      .filter((c) => eligible(team, c, foes).length)
+      .slice(0, 3),
     weights = odds(luck(team));
-  for (let draw = 0; draw < 3; draw++) {
+  for (let draw = chosen.length; draw < 3; draw++) {
     const pools = weights.map((_, tier) =>
       cards.filter(
         (c) =>
-          c.tier === tier && !chosen.includes(c) && eligible(team, c).length,
+          c.tier === tier &&
+          !chosen.includes(c) &&
+          eligible(team, c, foes).length,
       ),
     );
     const total = pools.reduce((n, p, i) => n + (p.length ? weights[i] : 0), 0);
@@ -414,105 +420,7 @@ export function resolve(g, plans, onEvent) {
     (a, b) =>
       b.speed - a.speed || ((a.s + g.round) % 2) - ((b.s + g.round) % 2),
   );
-  for (const { s, h, skill, t } of queue) {
-    const mode = skills[skill][0];
-    const targetSide = mode === "enemy" ? 1 - s : s;
-    const event = {
-      from: [s, g.teams[s].indexOf(h)],
-      to: [targetSide, g.teams[targetSide].indexOf(t)],
-      skill,
-    };
-    if (
-      !h.hp ||
-      (!t.hp &&
-        !(
-          mode === "enemy" &&
-          g.teams[1 - s][0].hp &&
-          g.teams[1 - s][0].round.taunt
-        ))
-    ) {
-      emit({ ...event, kind: !h.hp ? "skipped" : "miss" });
-      continue;
-    }
-    if (mode === "all") {
-      const enemy = g.teams[1 - s],
-        targets = living(enemy).sort((a, b) => a.hp / a.max - b.hp / b.max);
-      const volley = targets.map((t) => [1 - s, enemy.indexOf(t)]);
-      targets.forEach((target, i) =>
-        hit(g, s, h, target, skill, emit, {
-          favored: i === 0,
-          volley: i === 0 ? volley : undefined,
-          bonus: i === 0 && targets.length >= 2 && h.cards.afterburn ? 3 : 0,
-          power: targets.length === 1 && h.cards.concentrate ? 1.15 : 0.65,
-        }),
-      );
-      if (h.cards.cinder) {
-        const survivor = lowest(enemy);
-        if (survivor) {
-          survivor.mark = true;
-          emit({
-            from: event.from,
-            to: [1 - s, enemy.indexOf(survivor)],
-            skill: "Cinder Seal",
-            kind: "mark",
-          });
-        }
-      }
-      continue;
-    }
-    if (mode === "enemy") {
-      if (skill === "Ambush") h.round.evade = true;
-      hit(g, s, h, t, skill, emit);
-      continue;
-    }
-    const before = t.hp;
-    let effect = "";
-    if (skill === "Guard" || skill === "Riposte") {
-      t.guard = { source: h, counter: skill === "Riposte" };
-      if (t.cards.cover) t.coverReady = true;
-      effect = "guards";
-    }
-    if (skill === "Taunt") {
-      h.round.taunt = true;
-      effect = "taunts";
-    }
-    if (skill === "Aegis") {
-      ward(t, h, t.max * 0.25);
-      effect = "shields";
-    }
-    if (skill === "Mend") {
-      const n = Math.round(h.mag * 0.9) + 5 * (h.cards.mercy || 0);
-      const excess = Math.max(0, t.hp + n - t.max);
-      heal(t, n);
-      if (h.cards.overflow || h.cards.prayer)
-        ward(t, h, (h.cards.prayer ? 5 : 0) + (h.cards.overflow ? excess : 0));
-      effect = "heals";
-    }
-    if (skill === "Bless") {
-      t.bless = 12 + (h.cards.fervor ? 4 : 0);
-      ward(t, h, 6);
-      const other = lowest(g.teams[s].filter((a) => a !== t));
-      if (h.cards.doublebless && other) other.bless = Math.max(other.bless, 6);
-      effect = "blesses";
-    }
-    if (skill === "Haste") {
-      t.nextSpeed = Math.max(t.nextSpeed, 10);
-      heal(t, 8);
-      effect = "heals";
-    }
-    emit({
-      ...event,
-      kind:
-        effect === "heals" ? "heal" : effect === "shields" ? "ward" : "support",
-      delta: t.hp - before,
-      shield: t.ward?.left || 0,
-    });
-    if (skill === "Aegis" && h.cards.pulse) {
-      const enemies = living(g.teams[1 - s]);
-      const target = enemies.find((a) => a.mark) || lowest(enemies);
-      if (target) hit(g, s, h, target, "Barrier Pulse", emit);
-    }
-  }
+  for (const action of queue) perform(g, action, emit);
   for (const h of g.teams.flat()) {
     h.guard = null;
     h.ward = null;
@@ -523,4 +431,117 @@ export function resolve(g, plans, onEvent) {
   const log = events.map((event) => eventText(event));
   g.history.push({ round: g.round, log, events });
   return log;
+}
+
+function perform(g, { s, h, skill, t }, emit) {
+  const mode = skills[skill][0];
+  const targetSide = mode === "enemy" ? 1 - s : s;
+  const event = {
+    from: [s, g.teams[s].indexOf(h)],
+    to: [targetSide, g.teams[targetSide].indexOf(t)],
+    skill,
+  };
+  if (
+    !h.hp ||
+    (!t.hp &&
+      !(
+        mode === "enemy" &&
+        g.teams[1 - s][0].hp &&
+        g.teams[1 - s][0].round.taunt
+      ))
+  ) {
+    emit({ ...event, kind: !h.hp ? "skipped" : "miss" });
+    return;
+  }
+  if (mode === "all") {
+    const enemy = g.teams[1 - s],
+      targets = living(enemy).sort((a, b) => a.hp / a.max - b.hp / b.max);
+    const volley = targets.map((t) => [1 - s, enemy.indexOf(t)]);
+    targets.forEach((target, i) =>
+      hit(g, s, h, target, skill, emit, {
+        favored: i === 0,
+        volley: i === 0 ? volley : undefined,
+        bonus: i === 0 && targets.length >= 2 && h.cards.afterburn ? 3 : 0,
+        power: targets.length === 1 && h.cards.concentrate ? 1.15 : 0.65,
+      }),
+    );
+    if (h.cards.cinder) {
+      const survivor = lowest(enemy);
+      if (survivor) {
+        survivor.mark = true;
+        emit({
+          from: event.from,
+          to: [1 - s, enemy.indexOf(survivor)],
+          skill: "Cinder Seal",
+          kind: "mark",
+        });
+      }
+    }
+    return;
+  }
+  if (mode === "enemy") {
+    if (skill === "Ambush") h.round.evade = true;
+    hit(g, s, h, t, skill, emit);
+    return;
+  }
+  const before = t.hp;
+  let effect = "";
+  if (skill === "Guard" || skill === "Riposte") {
+    t.guard = { source: h, counter: skill === "Riposte" };
+    if (t.cards.cover) t.coverReady = true;
+    effect = "guards";
+  }
+  if (skill === "Taunt") {
+    h.round.taunt = true;
+    effect = "taunts";
+  }
+  if (skill === "Aegis") {
+    ward(t, h, t.max * 0.25);
+    effect = "shields";
+  }
+  if (skill === "Mend") {
+    const n = Math.round(h.mag * 0.9) + 5 * (h.cards.mercy || 0);
+    const excess = Math.max(0, t.hp + n - t.max);
+    heal(t, n);
+    if (h.cards.overflow || h.cards.prayer)
+      ward(t, h, (h.cards.prayer ? 5 : 0) + (h.cards.overflow ? excess : 0));
+    effect = "heals";
+  }
+  if (skill === "Bless") {
+    t.bless = 12 + (h.cards.fervor ? 4 : 0);
+    ward(t, h, 6);
+    const other = lowest(g.teams[s].filter((a) => a !== t));
+    if (h.cards.doublebless && other) other.bless = Math.max(other.bless, 6);
+    effect = "blesses";
+  }
+  if (skill === "Haste") {
+    t.nextSpeed = Math.max(t.nextSpeed, 10);
+    heal(t, 8);
+    effect = "heals";
+  }
+  emit({
+    ...event,
+    kind:
+      effect === "heals" ? "heal" : effect === "shields" ? "ward" : "support",
+    delta: t.hp - before,
+    shield: t.ward?.left || 0,
+  });
+  if (skill === "Aegis" && h.cards.pulse) {
+    const enemies = living(g.teams[1 - s]);
+    const target = enemies.find((a) => a.mark) || lowest(enemies);
+    if (target) hit(g, s, h, target, "Barrier Pulse", emit);
+  }
+}
+// Simulate just this action from the visible board. Private plans never enter the preview.
+export function previewAction(g, s, i, slot, target) {
+  const board = { teams: structuredClone(g.teams) };
+  const h = board.teams[s][i],
+    skill = h.skills[slot],
+    mode = skills[skill][0];
+  const side = mode === "enemy" ? 1 - s : s;
+  const t = mode === "self" || mode === "all" ? h : board.teams[side][target];
+  if (!h.hp || !t?.hp) return null;
+  const events = [];
+  perform(board, { s, h, skill, t }, (event) => events.push(event));
+  return { events, teams: board.teams };
 }
