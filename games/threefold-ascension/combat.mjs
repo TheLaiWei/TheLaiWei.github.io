@@ -154,16 +154,20 @@ function beginRound(g) {
   }
   b.intents = lockIntents(g);
   b.plans = {};
-  for (const h of living(g.heroes)) {
-    const choices = skillsFor(h),
-      skill =
-        choices.find((s) => ["enemy", "all"].includes(SKILL[s][0])) ||
-        choices[0];
-    const targets = targetsFor(g, h, skill);
-    b.plans[h.id] = { skill, target: targets[0]?.id || h.id };
-  }
+  for (const h of living(g.heroes)) restorePlan(g, h);
   b.ready = [!own(g, 0).length, !own(g, 1).length];
   g.phase = "combat";
+}
+export function restorePlan(g, h) {
+  const battle = g.battle;
+  if (!battle) return;
+  const choices = skillsFor(h);
+  if (choices.includes(battle.plans[h.id]?.skill)) return;
+  const skill =
+    choices.find((id) => ["enemy", "all"].includes(SKILL[id][0])) || choices[0];
+  const target = targetsFor(g, h, skill)[0];
+  battle.plans[h.id] = { skill, target: target?.id || h.id };
+  battle.ready[h.owner] = false;
 }
 export function targetsFor(g, h, skill) {
   const mode = SKILL[skill]?.[0];

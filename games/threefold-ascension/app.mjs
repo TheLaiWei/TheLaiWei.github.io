@@ -1,7 +1,8 @@
 import {
   createRun,
   VERSION,
-  ROOM,
+  restoreRun,
+  useSupply,
   available,
   pickCard,
   vote,
@@ -11,15 +12,15 @@ import {
   leaveShop,
   potion,
 } from "./campaign.mjs";
-import { SKILL, BY_CARD, recipients } from "./party.mjs";
 import { setPlan, targetsFor, ready, unit } from "./combat.mjs";
 import { showTargets, animateEvent } from "./effects.mjs";
 import { setLanguage, lang, T } from "./display.mjs";
-import { landing, gameTable, endScreen, modal } from "./screens.mjs";
+import { landing, endScreen, modal } from "./screens.mjs";
+
+import { gameTable, mapY } from "./journey.mjs";
 
 const SAVE = "threefold.ascension.run.v1",
-  LANG = "threefold.ascension.language",
-  SEATS = "threefold.ascension.seats";
+  LANG = "threefold.ascension.language";
 const app = document.getElementById("app"),
   dlg = document.getElementById("dialog"),
   dialogBody = document.getElementById("dialog-body");
@@ -67,7 +68,7 @@ function decode(raw) {
       ].includes(x.phase)
     ) {
       stamp = box.stamp || 0;
-      return x;
+      return restoreRun(x);
     }
   } catch {}
   invalidSave = true;
@@ -78,13 +79,12 @@ let g = decode(read(SAVE)),
   dialogKind = "",
   dialogArg = null,
   timer = 0,
-  noticeTimer = 0,
-  atlasKey = "";
+  noticeTimer = 0;
 const ui = {
   seats: [{ tab: "base" }, { tab: "base" }],
   focusNode: "",
   group: "Fighter",
-  upright: read(SEATS) === "upright",
+  lastPanel: 0,
   playing: false,
   cursor: -1,
   lines: false,
@@ -117,7 +117,7 @@ function save() {
 function resetSeats() {
   ui.seats = [{ tab: "base" }, { tab: "base" }];
   ui.focusNode = "";
-  atlasKey = "";
+  ui.lastPanel = 0;
 }
 function stopPlayback() {
   lastEvent = null;
@@ -188,9 +188,8 @@ function bodyPatch(html) {
   else sync(app.firstElementChild, template.content.firstElementChild);
 }
 function roads() {
-  const canvas = document.getElementById("roads"),
-    scroll = document.getElementById("atlas-scroll");
-  if (!canvas || !scroll || !g) return;
+  const canvas = document.getElementById("roads");
+  if (!canvas || !g) return;
   const w = canvas.clientWidth,
     h = canvas.clientHeight,
     dpr = Math.min(devicePixelRatio || 1, 2);
@@ -208,21 +207,24 @@ function roads() {
     for (const id of n.next) {
       const next = byId[id],
         on = g.path.includes(n.id) && g.path.includes(next.id),
-        front = n.id === cur || choices.some((a) => a.id === n.id);
-      ctx.strokeStyle = on ? "#c7cea0" : front ? "#c5aa74" : "#71806a";
-      ctx.lineWidth = on || front ? 1.7 : 1;
-      ctx.setLineDash(on || front ? [] : [3, 3]);
+        front = n.id === cur || (!cur && choices.some((a) => a.id === n.id));
+      const x1 = n.x * w,
+        y1 = (mapY(n.row) * h) / 100,
+        x2 = next.x * w,
+        y2 = (mapY(next.row) * h) / 100;
       ctx.beginPath();
-      ctx.moveTo(n.x * w, 22 + (9 - n.row) * 38);
-      ctx.lineTo(next.x * w, 22 + (9 - next.row) * 38);
+      ctx.moveTo(x1, y1);
+      ctx.bezierCurveTo(x1, (y1 + y2) / 2, x2, (y1 + y2) / 2, x2, y2);
+      ctx.lineCap = "round";
+      ctx.setLineDash([]);
+      ctx.lineWidth = on || front ? 6 : 3.8;
+      ctx.strokeStyle = on || front ? "#352913d9" : "#403525b5";
+      ctx.stroke();
+      ctx.lineWidth = on || front ? 3.2 : 2.2;
+      ctx.strokeStyle = on ? "#e9bd63" : front ? "#fff2b1" : "#ead7aa";
+      ctx.setLineDash(on || front ? [] : [3, 5]);
       ctx.stroke();
     }
-  const key = g.act + "/" + (cur || "entrance");
-  if (atlasKey !== key) {
-    scroll.scrollTop =
-      22 + (9 - (choices[0]?.row || 0)) * 38 - scroll.clientHeight * 0.72;
-    atlasKey = key;
-  }
 }
 function paint() {
   document.title = T("Threefold Ascension · Lai Wei", "三英登塔 · Lai Wei");
@@ -270,6 +272,7 @@ dlg.addEventListener("close", () => {
 });
 function seatView(p, tab, extra = {}) {
   ui.seats[p] = { tab, ...extra };
+  ui.lastPanel = p;
   paint();
   const panel = document.querySelector('[data-panel="' + p + '"]');
   if (panel) panel.scrollTop = 0;
@@ -386,13 +389,6 @@ document.addEventListener("click", (e) => {
     paint();
     return;
   }
-  if (a === "rotate") {
-    ui.upright = !ui.upright;
-    store(SEATS, ui.upright ? "upright" : "face");
-    close();
-    paint();
-    return;
-  }
   if (a === "lines") {
     ui.lines = !ui.lines;
     paint();
@@ -413,14 +409,36 @@ document.addEventListener("click", (e) => {
     seatView(p, "base");
     return;
   }
-  if (a === "bag" || a === "book" || a === "order") {
+  if (a === "panel-back") {
+    const prior = ui.seats[p];
+    if (prior.tab === "book")
+      seatView(p, prior.from || "base", { id: prior.id });
+    else seatView(p, prior.tab === "supply" ? "bag" : "room");
+    return;
+  }
+  if (a === "book") {
+    seatView(p, "book", { id, from: ui.seats[p].tab });
+    return;
+  }
+  if (["room", "bag", "order", "supply"].includes(a)) {
     seatView(p, a, { id });
     return;
   }
+  if (a === "foe") {
+    show(a, id);
+    return;
+  }
+  if (a === "use-supply") {
+    if (mutation(() => useSupply(g, p, id, to))) {
+      seatView(p, "bag");
+      notice(T("Supply used.", "已使用补给。"));
+    }
+    return;
+  }
   if (a === "hero") {
-    seatView(p, g.phase === "combat" && !g.battle.ready[p] ? "hero" : "book", {
-      id,
-    });
+    const edit =
+      g.phase === "combat" && !g.battle.ready[p] && unit(g, id)?.hp > 0;
+    seatView(p, edit ? "hero" : "book", { id, from: "base" });
     return;
   }
   if (a === "opentrain") {
@@ -441,7 +459,8 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (a === "ready") {
-    mutation(() => ready(g, p));
+    if (mutation(() => ready(g, p)) && g.phase === "combat")
+      seatView(p, "base");
     return;
   }
   if (a === "continue") {
@@ -449,18 +468,23 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (a === "vote") {
-    mutation(() => vote(g, p, g.phase === "event" ? Number(v) : v));
+    if (
+      mutation(() => vote(g, p, g.phase === "event" ? Number(v) : v)) &&
+      ["relic", "event"].includes(g.phase)
+    )
+      seatView(p, "base");
     return;
   }
   if (["take", "buycard"].includes(a)) {
     const acquired = mutation(() =>
       a === "take" ? pickCard(g, p, id, hero, slot) : buy(g, p, id, hero, slot),
     );
-    if (acquired) seatView(p, "base");
+    if (acquired)
+      seatView(p, a === "buycard" && g.phase === "shop" ? "room" : "base");
     return;
   }
   if (a === "skip") {
-    mutation(() => pickCard(g, p, "skip"));
+    if (mutation(() => pickCard(g, p, "skip"))) seatView(p, "base");
     return;
   }
   if (a === "potion") {
@@ -472,16 +496,23 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (a === "leave") {
-    mutation(() => leaveShop(g, p));
+    if (mutation(() => leaveShop(g, p))) seatView(p, "base");
     return;
   }
   if (a === "campheal") {
-    mutation(() => camp(g, p, "heal"));
+    if (mutation(() => camp(g, p, "heal"))) seatView(p, "base");
     return;
   }
   if (a === "train") {
     if (mutation(() => camp(g, p, "train", hero, id))) seatView(p, "base");
   }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || dlg.open || page !== "play") return;
+  const p = [ui.lastPanel, 1 - ui.lastPanel].find(
+    (p) => ui.seats[p].tab !== "base",
+  );
+  if (p != null) seatView(p, "base");
 });
 window.addEventListener("storage", (e) => {
   if (e.key !== SAVE || !e.newValue) return;

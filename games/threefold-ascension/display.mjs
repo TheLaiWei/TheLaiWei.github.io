@@ -31,6 +31,14 @@ export const escape = (value) =>
       ],
   );
 export const E = escape;
+export const artImage = (collection, id, cls = "") =>
+  '<img alt="" draggable="false" class="' +
+  E(cls) +
+  '" src="./art/' +
+  E(collection) +
+  "/" +
+  E(id) +
+  '.webp">';
 export function btn(action, html, data = {}, cls = "", opts = {}) {
   const values = Object.entries(data)
     .map(([k, v]) => " data-" + k + '="' + E(v) + '"')
@@ -53,11 +61,7 @@ export function btn(action, html, data = {}, cls = "", opts = {}) {
 export function who(g, u, short = false) {
   if (!u) return "—";
   if (u.owner != null)
-    return (
-      (short ? (u.owner === 0 ? "I" : "II") : teamName(u.owner)) +
-      " · " +
-      label(u.name)
-    );
+    return teamName(u.owner) + (short ? T(" ", "") : " · ") + label(u.name);
   const peers = g.battle.enemies.filter((e) => e.type === u.type);
   return (
     N(ENEMIES[u.type]) +

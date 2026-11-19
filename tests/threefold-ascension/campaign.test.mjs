@@ -13,6 +13,10 @@ import {
   allowedEvent,
   campHeal,
   price,
+  restoreRun,
+  SUPPLIES,
+  supplyTargets,
+  useSupply,
 } from "../../games/threefold-ascension/campaign.mjs";
 import {
   unit,
@@ -352,6 +356,103 @@ test("both priests can help a partner, shared blessings refresh, and a draught r
   assert.ok(t.hp > 0);
   assert.ok(b.plans[t.id]);
 });
+test("each encounter can award one shared supply in addition to both drafts, and saved rewards never reroll", () => {
+  for (const kind of ["battle", "elite", "boss"]) {
+    const results = new Set();
+    for (let seed = 0; seed < 60; seed++) {
+      const g = start(seed);
+      g.node = g.map[0][0];
+      g.node.kind = kind;
+      beginBattle(g, kind, ["hound"]);
+      g.battle.enemies[0].hp = 1;
+      lock(g);
+      assert.equal(g.battle.outcome, "victory");
+      assert.ok(continueRound(g));
+      assert.deepEqual(
+        g.reward.offers.map((cards) => cards.length),
+        [3, 3],
+      );
+      const supply = g.reward.supply;
+      results.add(Boolean(supply));
+      if (supply) assert.ok(Object.hasOwn(SUPPLIES, supply));
+      assert.deepEqual(g.supplies, supply ? { [supply]: 1 } : {});
+      const saved = JSON.stringify(g);
+      const resumed = restoreRun(JSON.parse(saved));
+      assert.equal(continueRound(resumed), false);
+      assert.equal(JSON.stringify(resumed), saved);
+    }
+    assert.deepEqual(results, new Set([false, true]));
+  }
+});
+
+test("earlier saves keep their dealt cards and either player can use the last shared consumable exactly once", () => {
+  const legacy = createRun(37);
+  const offers = structuredClone(legacy.reward.offers);
+  delete legacy.supplies;
+  const g = restoreRun(JSON.parse(JSON.stringify(legacy)));
+  assert.deepEqual(g.supplies, {});
+  assert.deepEqual(g.reward.offers, offers);
+  g.supplies = { honey: 1, bread: 1, berries: 1 };
+  const [fighter, mage, priest] = g.heroes;
+  assert.deepEqual(supplyTargets(g, 0, "honey"), []);
+  assert.equal(useSupply(g, 1, "honey", fighter.id), false);
+  assert.equal(g.supplies.honey, 1);
+  fighter.hp -= 11;
+  assert.deepEqual(supplyTargets(g, 1, "honey"), [
+    { id: fighter.id, amount: 11 },
+  ]);
+  assert.ok(useSupply(g, 1, "honey", fighter.id));
+  assert.equal(useSupply(g, 0, "honey", fighter.id), false);
+  assert.equal(fighter.hp, fighter.max);
+  fighter.hp -= 3;
+  mage.hp -= 12;
+  priest.hp = 0;
+  assert.deepEqual(supplyTargets(g, 1, "bread"), [
+    { id: "party0", amount: 11 },
+  ]);
+  assert.ok(useSupply(g, 1, "bread", "party0"));
+  assert.deepEqual(
+    [fighter.hp, mage.hp, priest.hp],
+    [fighter.max, mage.max - 4, 0],
+  );
+  assert.ok(useSupply(g, 0, "berries", mage.id));
+  assert.equal(mage.hp, mage.max);
+  assert.deepEqual(g.supplies, {});
+});
+
+test("combat supplies respect ready seats, repair a restored hero's plan, and preserve stronger barriers", () => {
+  const g = start();
+  g.supplies = { bandage: 1, tea: 1, tonic: 2 };
+  const fighter = g.heroes[0],
+    priest = g.heroes[5];
+  fighter.hp = 0;
+  priest.skills = ["Mend", "Haste"];
+  beginBattle(g, "battle", ["hound"]);
+  const b = g.battle;
+  b.enemies[0].hp = b.enemies[0].max = 500;
+  assert.ok(useSupply(g, 1, "bandage", fighter.id));
+  assert.equal(fighter.hp, Math.ceil(fighter.max * 0.3));
+  assert.ok(b.plans[fighter.id]);
+  fighter.r.ward = 18;
+  assert.equal(useSupply(g, 1, "tonic", fighter.id), false);
+  fighter.r.ward = 3;
+  assert.ok(useSupply(g, 1, "tonic", fighter.id));
+  assert.equal(fighter.r.ward, 14);
+  assert.equal(useSupply(g, 0, "tonic", fighter.id), false);
+  priest.b.charges = 0;
+  assert.ok(setPlan(g, 1, priest.id, "Hold", priest.id));
+  assert.ok(ready(g, 1));
+  assert.equal(useSupply(g, 1, "tea", priest.id), false);
+  assert.ok(useSupply(g, 0, "tea", priest.id));
+  assert.equal(priest.b.charges, 1);
+  assert.ok(skillsFor(priest).includes(b.plans[priest.id].skill));
+  assert.equal(b.ready[1], false);
+  lock(g);
+  assert.deepEqual(supplyTargets(g, 0, "tonic"), []);
+  assert.ok(continueRound(g));
+  assert.equal(fighter.r.ward, 0);
+});
+
 test("the catalog has five distinct bilingual pools, enforces capabilities, and samples distinct usable offers", () => {
   assert.equal(CARDS.length, 120);
   assert.equal(new Set(CARDS.map((c) => c.id)).size, 120);

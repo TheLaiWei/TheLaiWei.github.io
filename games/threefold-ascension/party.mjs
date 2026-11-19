@@ -1,4 +1,4 @@
-import { newMatch, odds, art } from "../threefold-duel/engine.mjs";
+import { newMatch, odds } from "../threefold-duel/engine.mjs";
 import { skills as duelSkills } from "../threefold-duel/catalog.mjs";
 import { CARDS } from "./cards.mjs";
 
@@ -38,7 +38,12 @@ export const lowest = (list) =>
     (best, u) => (!best || u.hp / u.max < best.hp / best.max ? u : best),
     null,
   );
-export const roleArt = (h) => "../threefold-duel/art/" + art(h) + ".svg";
+export const roleArt = (h) =>
+  "./art/company/" +
+  (h.owner === 0 ? "amber" : "jade") +
+  "-" +
+  h.name.toLowerCase() +
+  ".webp";
 export const mod = (h, key) => h?.mods?.[key] || 0;
 export const hasRelic = (g, key) => g.relics.filter((id) => id === key).length;
 export const heal = (h, amount) => {
