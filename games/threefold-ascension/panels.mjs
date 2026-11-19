@@ -1,9 +1,7 @@
-import { ACTS, ENEMIES, EVENTS, MOVES, RELICS } from "./world.mjs";
+import { EVENTS, MOVES, RELICS } from "./world.mjs";
 import {
   BY_CARD,
   SKILL,
-  mod,
-  living,
   stat,
   roleArt,
   recipients,
@@ -13,26 +11,25 @@ import {
   healCapacity,
 } from "./party.mjs";
 import {
-  ROOM,
-  available,
+  SUPPLIES,
+  supplyTargets,
   allowedEvent,
   trainingChoices,
   campHeal,
   price,
 } from "./campaign.mjs";
-import { unit, order, targetsFor, preview } from "./combat.mjs";
+import { unit, order, targetsFor } from "./combat.mjs";
 import {
   T,
   N,
   D,
   E,
+  artImage,
   btn,
   label,
   grade,
   teamName,
   who,
-  nodeName,
-  nodeDetail,
   amounts,
   skillLine,
   intentText,
@@ -43,13 +40,22 @@ const choice = (en, zh) => '<p class="instruction">' + T(en, zh) + "</p>";
 const heading = (text) => "<h3>" + E(text) + "</h3>";
 const small = (text) => "<small>" + E(text) + "</small>";
 const strong = (text) => "<strong>" + E(text) + "</strong>";
-const back = (p, act = "back") =>
+const back = (p, act = "panel-back") =>
   btn(act, T("‹ Back", "‹ 返回"), { p }, "minor");
 const klass = (c) => "q" + c.rarity;
-function rowButton(a, title, detail, data, cls = "", opts = {}) {
+function rowButton(
+  a,
+  title,
+  detail,
+  data,
+  cls = "",
+  opts = {},
+  illustration = "",
+) {
   return btn(
     a,
-    "<span>" +
+    illustration +
+      "<span>" +
       strong(title) +
       (detail ? small(detail) : "") +
       "</span><i aria-hidden='true'>›</i>",
@@ -136,11 +142,6 @@ function skillEditor(g, p, h) {
     })
     .join("");
   return (
-    '<div class="pane-top">' +
-    back(p) +
-    strong(label(h.name)) +
-    btn("book", T("Build ↗", "构筑 ↗"), { p, id: h.id }, "minor") +
-    "</div>" +
     '<div class="skill-tabs">' +
     sks +
     '</div><p class="skill-explain">' +
@@ -156,7 +157,11 @@ function skillEditor(g, p, h) {
             "/" +
             healCapacity(h),
         )
-      : "")
+      : "") +
+    '<div class="skill-actions">' +
+    btn("book", T("Hero & upgrades", "英雄与升级"), { p, id: h.id }, "minor") +
+    btn("back", T("Done", "完成"), { p }, "ready") +
+    "</div>"
   );
 }
 function history(g, h) {
@@ -218,6 +223,39 @@ function heroBook(g, p, h) {
     history(g, h)
   );
 }
+function supplyPane(g, p, id) {
+  const item = SUPPLIES[id],
+    options = supplyTargets(g, p, id);
+  if (!item) return bag(g, p);
+  const details = options
+    .map((o) => {
+      const name =
+        id === "bread"
+          ? teamName(Number(o.id.slice(-1)))
+          : who(g, unit(g, o.id));
+      const gain =
+        id === "tea"
+          ? T("+1 recovery charge", "治疗次数 +1")
+          : id === "tonic"
+            ? T("Barrier → 14", "屏障 → 14")
+            : "+" + o.amount + " HP";
+      return rowButton("use-supply", name, gain, { p, id, to: o.id });
+    })
+    .join("");
+  return (
+    '<div class="pane-top">' +
+    back(p) +
+    '</div><div class="item-detail">' +
+    artImage("goods", id) +
+    "<div>" +
+    heading(N(item)) +
+    small(D(item)) +
+    "</div></div>" +
+    (details ||
+      choice("No eligible target right now.", "目前没有可使用的目标。"))
+  );
+}
+
 function bag(g, p) {
   const allowed =
     ["combat", "map", "rest", "shop"].includes(g.phase) &&
@@ -226,31 +264,44 @@ function bag(g, p) {
       g.battle.ready[p] &&
       own(g, p).some((h) => h.hp > 0)
     );
-  const relics = [...new Set(g.relics)]
-    .map(
-      (id) =>
-        '<article class="history-entry"><b>' +
-        E(RELICS[id].icon + " " + N(RELICS[id])) +
-        (g.relics.filter((k) => k === id).length > 1
-          ? " ×" + g.relics.filter((k) => k === id).length
-          : "") +
-        "</b>" +
-        small(D(RELICS[id])) +
-        "</article>",
+  const supplies = Object.entries(g.supplies || {})
+    .filter(([id, n]) => SUPPLIES[id] && n > 0)
+    .map(([id, count]) =>
+      rowButton(
+        "supply",
+        N(SUPPLIES[id]) + " ×" + count,
+        D(SUPPLIES[id]),
+        { p, id },
+        "",
+        {},
+        artImage("goods", id, "item-icon"),
+      ),
     )
+    .join("");
+  const relics = [...new Set(g.relics)]
+    .map((id) => {
+      const n = g.relics.filter((k) => k === id).length;
+      return (
+        '<article class="item-detail">' +
+        artImage("goods", id) +
+        "<span>" +
+        strong(N(RELICS[id]) + (n > 1 ? " ×" + n : "")) +
+        small(D(RELICS[id])) +
+        "</span></article>"
+      );
+    })
     .join("");
   const potions =
     allowed && g.players[p].potions
       ? '<div class="targets">' +
         g.heroes
+          .filter((h) => h.hp < h.max)
           .map((h) =>
             btn(
               "potion",
               strong(who(g, h, true)) +
                 small(
                   h.hp +
-                    "/" +
-                    h.max +
                     " → " +
                     (h.hp
                       ? Math.min(h.max, h.hp + 25)
@@ -259,136 +310,60 @@ function bag(g, p) {
                 ),
               { p, id: h.id },
               "target",
-              { disabled: h.hp === h.max },
             ),
           )
           .join("") +
         "</div>"
       : "";
   return (
-    '<div class="pane-top">' +
-    back(p) +
-    strong(T("Expedition pack", "探险行囊")) +
+    '<div class="pack-gold">' +
+    artImage("goods", "coins") +
+    strong(T("Party gold", "本队金币") + " · " + g.players[p].gold) +
     "</div>" +
-    teamGrid(g, p, "book") +
-    heading(T("Healing draughts", "治疗药剂") + " ×" + g.players[p].potions) +
-    choice(
-      "Restore 25 HP to either party, or revive one hero at 20% HP.",
-      "为任意队伍的一名英雄恢复 25 生命，或以 20% 生命复苏。",
+    heading(T("Shared supplies", "共用补给")) +
+    (supplies ||
+      choice(
+        "Supplies found after a fight appear here.",
+        "战斗后找到的补给会存放在这里。",
+      )) +
+    '<div class="item-detail">' +
+    artImage("goods", "potion") +
+    "<div>" +
+    strong(T("Healing draught", "治疗药剂") + " ×" + g.players[p].potions) +
+    small(
+      T(
+        "Personal stock · Recover 25 HP or revive at 20%.",
+        "个人物品 · 恢复 25 生命，或以 20% 生命复苏。",
+      ),
     ) +
+    "</div></div>" +
     potions +
     heading(T("Shared relics", "共享遗物") + " · " + g.relics.length) +
-    (relics ||
-      small(
-        T(
-          "Win an elite fight or find a vault.",
-          "击败精英或找到宝库即可获得。",
-        ),
-      ))
+    relics +
+    heading(T("Your heroes", "本队英雄")) +
+    teamGrid(g, p, "book")
   );
 }
 function actionOrder(g, p) {
-  const b = g.battle;
-  return (
-    '<div class="pane-top">' +
-    back(p) +
-    strong(T("Action order", "行动顺序")) +
-    "</div>" +
-    order(g)
-      .map(
-        (a) =>
-          '<div class="queue-row"><b>' +
-          a.speed +
-          "</b><span>" +
-          E(who(g, unit(g, a.from), true)) +
-          " · " +
-          E(a.skill ? label(a.skill) : N(MOVES[a.id])) +
-          small(
-            a.skill
-              ? SKILL[a.skill][0] === "all"
-                ? T("All enemies", "所有敌人")
-                : who(g, unit(g, a.target), true)
-              : intentText(g, a),
-          ) +
-          "</span></div>",
-      )
-      .join("")
-  );
-}
-function combatPlan(g, p) {
-  const plan = g.battle.plans,
-    estimates = {};
-  for (const h of living(g.heroes)) {
-    const a = plan[h.id];
-    if (SKILL[a.skill][0] === "enemy") {
-      const t = unit(g, a.target);
-      estimates[t.id] =
-        (estimates[t.id] || 0) + preview(g, h, a.skill, t).damage;
-    }
-  }
-  const crowded = living(g.battle.enemies).find(
-    (e) => (estimates[e.id] || 0) > e.hp + 8,
-  );
-  const threatened = g.battle.intents.filter((a) =>
-    a.targets.some((id) => unit(g, id)?.owner === p),
-  );
-  const line = threatened
-    .map((a) => N(MOVES[a.id]) + " → " + intentText(g, a))
-    .join(" / ");
-  return (
-    teamGrid(g, p) +
-    '<p class="threat"><b>' +
-    T("Incoming", "敌方意图") +
-    "</b> " +
-    E(
-      line ||
-        T("No announced attacks on your party.", "本轮未有攻击瞄准你的队伍。"),
-    ) +
-    "</p>" +
-    (crowded
-      ? '<p class="warning">' +
-        E(
-          T("Overlapping attacks on ", "集火伤害可能溢出 · ") +
-            who(g, crowded) +
-            " (" +
-            estimates[crowded.id] +
-            " / " +
-            crowded.hp +
-            " HP)",
+  return order(g)
+    .map(
+      (a) =>
+        '<div class="queue-row"><b>' +
+        a.speed +
+        "</b><span>" +
+        E(who(g, unit(g, a.from), true)) +
+        " · " +
+        E(a.skill ? label(a.skill) : N(MOVES[a.id])) +
+        small(
+          a.skill
+            ? SKILL[a.skill][0] === "all"
+              ? T("All enemies", "所有敌人")
+              : who(g, unit(g, a.target), true)
+            : intentText(g, a),
         ) +
-        "</p>"
-      : "")
-  );
-}
-function mapPanel(g, p) {
-  const vs = g.votes;
-  const route = available(g);
-  const prompt =
-    vs[p] != null && vs[1 - p] != null && vs[p] !== vs[1 - p]
-      ? T(
-          "Different routes. Change either vote to agree.",
-          "路线不同，更改任意一方选择即可同行。",
-        )
-      : T(
-          "Choose a room. Both votes must match.",
-          "选择房间。双方选择相同时进入。",
-        );
-  return (
-    choice(prompt, prompt) +
-    route
-      .map((n) =>
-        rowButton(
-          "vote",
-          ROOM[n.kind][0] + "  " + nodeName(g, n),
-          nodeDetail(g, n),
-          { p, v: n.id },
-          (vs[p] === n.id ? "chosen " : "") +
-            (vs[1 - p] === n.id ? "partner-vote" : ""),
-          { pressed: vs[p] === n.id },
-        ),
-      )
-      .join("")
-  );
+        "</span></div>",
+    )
+    .join("");
 }
 function listCards(g, p, shop = false) {
   const list = shop ? g.shop.stock[p] : g.reward.offers[p];
@@ -421,9 +396,9 @@ function listCards(g, p, shop = false) {
                       ? "holy"
                       : "strike";
         const art =
-          '<img class="upgrade-art" alt="" src="../threefold-duel/art/card-' +
+          '<img class="upgrade-art" alt="" src="./art/skills/' +
           category +
-          '.svg">';
+          '.webp">';
         return btn(
           "pick",
           art +
@@ -516,6 +491,11 @@ function shopPane(g, p) {
           stock.bought[p].includes(id) ||
           g.players[p].gold < price(g, p, id),
       },
+      artImage(
+        "goods",
+        id === "relic" ? stock.relic : id === "provisions" ? "bread" : id,
+        "item-icon",
+      ),
     );
   return (
     listCards(g, p, true) +
@@ -594,134 +574,63 @@ function waiting(g, p) {
     "</span></div>"
   );
 }
-export function seat(g, p, s, hps = {}) {
-  const head =
-    '<header class="seat-head"><span><i class="team-dot"></i>' +
-    E(teamName(p)) +
-    " <small>" +
-    T("Player ", "玩家 ") +
-    (p + 1) +
-    "</small></span>" +
-    btn(
-      "bag",
-      "<b>" + g.players[p].gold + "</b> " + T("gold", "金") + " <i>▤</i>",
-      { p },
-      "pack",
-      { label: T("Open pack and hero builds", "打开行囊与英雄构筑") },
-    ) +
-    "</header>";
-  let body = "",
-    footer = "";
-  if (s.tab === "bag") body = bag(g, p);
-  else if (s.tab === "book") body = heroBook(g, p, unit(g, s.id));
-  else if (s.tab === "hero" && g.phase === "combat")
-    body = skillEditor(g, p, unit(g, s.id));
-  else if (s.tab === "order" && g.phase === "combat") body = actionOrder(g, p);
-  else if (
-    s.tab === "pick" &&
-    ["draft", "shop"].includes(g.phase) &&
-    !g.done[p] &&
-    (g.phase === "shop" ? g.shop.stock[p] : g.reward.offers[p]).includes(s.id)
-  )
-    body = cardDetail(g, p, s.id, s.recip);
-  else if (g.phase === "combat") {
-    body = combatPlan(g, p);
-  } else if (g.phase === "round") {
-    body = teamGrid(g, p, "book", hps);
-    footer = btn(
-      "continue",
-      g.battle.outcome === "victory"
-        ? T("Claim rewards →", "领取奖励 →")
-        : g.battle.outcome === "defeat"
-          ? T("Expedition result →", "查看结果 →")
-          : g.battle.outcome === "wave"
-            ? T("Next wave →", "下一波 →")
-            : T("Next round →", "下一回合 →"),
-      {},
-      "ready",
-    );
-  } else if (g.phase === "map") body = mapPanel(g, p);
-  else if (g.phase === "draft") {
-    body = g.done[p] ? waiting(g, p) : listCards(g, p);
-    if (!g.done[p])
-      footer = btn(
+export function panelContent(g, p, s) {
+  if (s.tab === "bag") return bag(g, p);
+  if (s.tab === "supply") return supplyPane(g, p, s.id);
+  if (s.tab === "book") return heroBook(g, p, unit(g, s.id));
+  if (s.tab === "hero") return skillEditor(g, p, unit(g, s.id));
+  if (s.tab === "order") return actionOrder(g, p);
+  if (s.tab === "train") return campPane(g, p, true);
+  if (s.tab === "pick") {
+    const offers = g.phase === "shop" ? g.shop.stock[p] : g.reward?.offers?.[p];
+    if (!g.done[p] && offers?.includes(s.id))
+      return cardDetail(g, p, s.id, s.recip);
+  }
+  if (g.done[p]) return waiting(g, p);
+  if (g.phase === "draft")
+    return (
+      listCards(g, p) +
+      btn(
         "skip",
         g.reward.kind === "starter"
           ? T("Skip starter card", "跳过初始牌")
           : T("Pass for 5 gold", "跳过并获得 5 金"),
         { p },
-        "minor",
-      );
-  } else if (g.phase === "relic") {
-    body = g.reward.offers
-      .map((id) =>
-        rowButton(
-          "vote",
-          RELICS[id].icon + "  " + N(RELICS[id]),
-          D(RELICS[id]),
-          { p, v: id },
-          (g.votes[p] === id ? "chosen " : "") +
-            (g.votes[1 - p] === id ? "partner-vote" : ""),
-          { pressed: g.votes[p] === id },
-        ),
+        "minor pass",
       )
-      .join("");
-  } else if (g.phase === "event") {
-    body = EVENTS[g.node.event].options
+    );
+  if (g.phase === "rest") return campPane(g, p, false);
+  if (g.phase === "shop")
+    return (
+      shopPane(g, p) +
+      btn("leave", T("Finish shopping", "结束购物"), { p }, "ready pass")
+    );
+  if (g.phase === "event")
+    return EVENTS[g.node.event].options
       .map((o, i) =>
         rowButton(
           "vote",
           N(o),
           D(o),
           { p, v: i },
-          (g.votes[p] === i ? "chosen " : "") +
-            (g.votes[1 - p] === i ? "partner-vote" : ""),
+          g.votes[p] === i ? "chosen" : "",
           { disabled: !allowedEvent(g, i), pressed: g.votes[p] === i },
         ),
       )
       .join("");
-  } else if (g.phase === "shop") {
-    body = g.done[p] ? waiting(g, p) : shopPane(g, p);
-    if (!g.done[p])
-      footer = btn(
-        "leave",
-        T("Leave merchant →", "结束购物 →"),
-        { p },
-        "ready",
-      );
-  } else if (g.phase === "rest")
-    body = g.done[p] ? waiting(g, p) : campPane(g, p, s.tab === "train");
-  if (g.phase === "combat" && (!s.tab || ["base", "order"].includes(s.tab))) {
-    const alive = own(g, p).some((h) => h.hp > 0);
-    footer =
-      (s.tab !== "order"
-        ? btn("order", T("Speed order", "行动顺序"), { p }, "minor")
-        : "") +
-      btn(
-        "ready",
-        g.battle.ready[p]
-          ? alive
-            ? T("Ready ✓ · edit", "已就绪 ✓ · 修改")
-            : T("Party down", "队伍倒下")
-          : T("Ready plan →", "准备就绪 →"),
-        { p },
-        "ready" + (g.battle.ready[p] ? " is-ready" : ""),
-        { disabled: !alive },
-      );
-  }
-  return (
-    '<section class="seat p' +
-    p +
-    '" aria-label="' +
-    E(teamName(p)) +
-    '">' +
-    head +
-    '<div class="seat-scroll" data-panel="' +
-    p +
-    '">' +
-    body +
-    "</div>" +
-    (footer ? '<footer class="seat-foot">' + footer + "</footer>" : "") +
-    "</section>"
-  );
+  if (g.phase === "relic")
+    return g.reward.offers
+      .map((id) =>
+        rowButton(
+          "vote",
+          N(RELICS[id]),
+          D(RELICS[id]),
+          { p, v: id },
+          g.votes[p] === id ? "chosen" : "",
+          { pressed: g.votes[p] === id },
+          artImage("goods", id, "item-icon"),
+        ),
+      )
+      .join("");
+  return "";
 }

@@ -5,6 +5,7 @@ import {
   mod,
   living,
   heal,
+  healCapacity,
   hasRelic,
   random,
   shuffled,
@@ -15,7 +16,7 @@ import {
   recipients,
   cardActive,
 } from "./party.mjs";
-import { beginBattle, nextCombatRound } from "./combat.mjs";
+import { beginBattle, nextCombatRound, restorePlan } from "./combat.mjs";
 
 export const VERSION = 1;
 export const ROOM = {
@@ -109,6 +110,7 @@ export function createRun(seed = Math.floor(Math.random() * 4294967296)) {
       { gold: 18, potions: 1 },
     ],
     relics: [],
+    supplies: {},
     bellAct: -1,
     phase: "draft",
     stats: { rounds: 0, wins: 0, elites: 0, bosses: 0, rooms: 0 },
@@ -315,6 +317,13 @@ export function continueRound(g) {
   }
   g.battle = null;
   beginDraft(g, kind);
+  const chance = { battle: 0.45, elite: 0.65, boss: 0.85 }[kind];
+  if (random(g) < chance) {
+    const item = sample(g, Object.keys(SUPPLIES));
+    g.supplies ??= {};
+    g.supplies[item] = (g.supplies[item] || 0) + 1;
+    g.reward.supply = item;
+  }
   return true;
 }
 export function campHeal(g, h) {
@@ -434,25 +443,118 @@ export function potion(g, p, id) {
   if (!h.hp) h.hp = Math.min(h.max, Math.ceil(h.max * 0.2));
   else heal(h, 25);
   g.players[p].potions--;
-  if (g.phase === "combat" && !g.battle.plans[h.id]) {
-    const skill =
-      h.skills.find((s) => !["Mend", "Haste"].includes(s)) ||
-      (h.b.charges > 0 ? h.skills[0] : "Hold");
-    const support = [
-      "Guard",
-      "Riposte",
-      "Aegis",
-      "Mend",
-      "Bless",
-      "Haste",
-      "Taunt",
-      "Hold",
-    ].includes(skill);
-    g.battle.plans[h.id] = {
-      skill,
-      target: support ? h.id : living(g.battle.enemies)[0].id,
-    };
-    g.battle.ready[h.owner] = false;
+  restorePlan(g, h);
+  return true;
+}
+
+export const SUPPLIES = {
+  berries: {
+    en: "Trail berries",
+    zh: "山野浆果",
+    desc: "Restore 12 HP to one living hero.",
+    cn: "为一名存活英雄恢复 12 生命。",
+    hp: 12,
+  },
+  bread: {
+    en: "Hearth loaf",
+    zh: "炉烤面包",
+    desc: "Restore 8 HP to each living hero in one party.",
+    cn: "为一支队伍中每名存活英雄恢复 8 生命。",
+  },
+  honey: {
+    en: "Wildflower honey",
+    zh: "野花蜜",
+    desc: "Restore 22 HP to one living hero.",
+    cn: "为一名存活英雄恢复 22 生命。",
+    hp: 22,
+  },
+  tea: {
+    en: "Sage tea",
+    zh: "鼠尾草茶",
+    desc: "Restore one spent recovery charge to a healer during combat.",
+    cn: "战斗中，为一名有治疗技能的英雄补充 1 次已消耗的治疗次数。",
+  },
+  tonic: {
+    en: "Ironbark tonic",
+    zh: "铁皮树药剂",
+    desc: "Give one living hero a 14-point barrier until round end.",
+    cn: "为一名存活英雄提供 14 点屏障，持续至回合结束。",
+  },
+  bandage: {
+    en: "Field dressing",
+    zh: "急救绷带",
+    desc: "Revive a fallen hero with 30% of their maximum HP.",
+    cn: "复苏一名倒下的英雄，恢复其生命上限的 30%。",
+  },
+};
+
+// Older expeditions can resume in any room, including an already-dealt reward.
+export function restoreRun(g) {
+  g.supplies ??= {};
+  return g;
+}
+
+export function supplyTargets(g, p, item) {
+  if (
+    ![0, 1].includes(p) ||
+    !Object.hasOwn(SUPPLIES, item) ||
+    !(g.supplies?.[item] > 0) ||
+    ["round", "victory", "defeat"].includes(g.phase)
+  )
+    return [];
+  const combat = g.phase === "combat";
+  if (
+    combat &&
+    g.battle.ready[p] &&
+    g.heroes.some((h) => h.owner === p && h.hp)
+  )
+    return [];
+  if (item === "bread") {
+    return [0, 1]
+      .map((owner) => ({
+        id: "party" + owner,
+        amount: living(g.heroes)
+          .filter((h) => h.owner === owner)
+          .reduce((sum, h) => sum + Math.min(8, h.max - h.hp), 0),
+      }))
+      .filter((t) => t.amount > 0);
   }
+  return g.heroes
+    .map((h) => {
+      let amount = 0;
+      if (item === "bandage" && !h.hp) amount = Math.ceil(h.max * 0.3);
+      else if (h.hp && SUPPLIES[item].hp)
+        amount = Math.min(h.max - h.hp, SUPPLIES[item].hp);
+      else if (combat && h.hp && item === "tonic")
+        amount = Math.max(0, 14 - h.r.ward);
+      else if (
+        combat &&
+        h.hp &&
+        item === "tea" &&
+        h.skills.some((s) => ["Mend", "Haste"].includes(s)) &&
+        h.b.charges < healCapacity(h)
+      )
+        amount = 1;
+      return { id: h.id, amount };
+    })
+    .filter((t) => t.amount > 0);
+}
+
+export function useSupply(g, p, item, target) {
+  const option = supplyTargets(g, p, item).find((t) => t.id === target);
+  if (!option) return false;
+  const h = g.heroes.find((h) => h.id === target);
+  if (item === "bread") {
+    for (const ally of g.heroes.filter((h) => "party" + h.owner === target))
+      heal(ally, 8);
+  } else if (item === "bandage") {
+    h.hp = option.amount;
+    restorePlan(g, h);
+  } else if (item === "tonic") h.r.ward = 14;
+  else if (item === "tea") {
+    h.b.charges += 1;
+    restorePlan(g, h);
+  } else heal(h, option.amount);
+  if (--g.supplies[item] === 0) delete g.supplies[item];
   return true;
 }

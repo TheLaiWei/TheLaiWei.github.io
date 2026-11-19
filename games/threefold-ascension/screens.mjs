@@ -1,7 +1,6 @@
-import { ACTS, ENEMIES, EVENTS, MOVES, RELICS } from "./world.mjs";
+import { ACTS, ENEMIES, MOVES, RELICS } from "./world.mjs";
 import { CARDS } from "./cards.mjs";
-import { living } from "./party.mjs";
-import { ROOM, available } from "./campaign.mjs";
+
 import { unit } from "./combat.mjs";
 import {
   T,
@@ -11,21 +10,16 @@ import {
   btn,
   roman,
   grade,
-  teamName,
-  roomName,
-  nodeName,
-  nodeDetail,
+  artImage,
   intentText,
   eventText,
   who,
   lang,
   label,
 } from "./display.mjs";
-import { seat } from "./panels.mjs";
 
-const title = () => T("Threefold Ascension", "三英登塔");
 const seal = '<span class="brand-mark" aria-hidden="true"><i></i></span>';
-export function landing(g, saved = false) {
+export function landing(g) {
   const resume = !!g && !["victory", "defeat"].includes(g.phase);
   const name =
     lang === "en" ? "Threefold<br><em>Ascension</em>" : "三英<br><em>登塔</em>";
@@ -38,10 +32,10 @@ export function landing(g, saved = false) {
     btn("guide", T("Field guide", "探险指南"), {}, "nav-link") +
     btn("lang", T("简体中文", "English"), {}, "language") +
     "</div></nav>" +
-    '<section class="cover"><div class="cover-art"><img src="./art/tower.webp" alt="' +
+    '<section class="cover"><div class="cover-art"><img src="./art/atlas/title.webp" alt="' +
     T(
-      "A winding golden stairway climbs a three-tiered tower above the mountains.",
-      "金色阶梯绕山而上，通向三层高塔。",
+      "A sunlit expedition tower rises above forest paths and a crystalline mountainside.",
+      "林间山道与琉璃山坡之上，层层塔楼沐浴着阳光。",
     ) +
     '"></div>' +
     '<div class="cover-copy"><p class="eyebrow"><i></i>' +
@@ -91,7 +85,7 @@ export function landing(g, saved = false) {
     ACTS.map((a, i) =>
       btn(
         "chapter",
-        '<span class="chapter-portrait"><img alt="" src="./art/' +
+        '<span class="chapter-portrait"><img alt="" src="./art/bestiary/' +
           a.boss +
           '.webp"></span><span class="chapter-text"><small>' +
           T("Act ", "第 ") +
@@ -113,322 +107,11 @@ export function landing(g, saved = false) {
     "</a></footer></div>"
   );
 }
-function routeMap(g, focus) {
-  const next = available(g),
-    ids = next.map((n) => n.id);
-  const chosen = g.map.flat().find((n) => n.id === focus) || next[0] || g.node;
-  const html = g.map
-    .map((row, i) =>
-      row
-        .map((n) => {
-          const y = 22 + (9 - i) * 38,
-            visited = g.path.includes(n.id),
-            can = ids.includes(n.id);
-          return (
-            '<button type="button" data-act="inspect-node" data-id="' +
-            n.id +
-            '" style="left:' +
-            n.x * 100 +
-            "%;top:" +
-            y +
-            'px" class="map-node ' +
-            n.kind +
-            (visited ? " visited" : "") +
-            (can ? " open" : "") +
-            (chosen?.id === n.id ? " selected" : "") +
-            '" aria-label="' +
-            E(
-              T("Floor ", "第 ") +
-                (i + 1) +
-                (lang === "zh" ? " 层" : "") +
-                " · " +
-                nodeName(g, n),
-            ) +
-            '" title="' +
-            E(nodeName(g, n)) +
-            '">' +
-            ROOM[n.kind][0] +
-            "</button>"
-          );
-        })
-        .join(""),
-    )
-    .join("");
-  return (
-    '<div class="route-layout"><div class="atlas-scroll" id="atlas-scroll"><div class="atlas"><canvas id="roads" aria-hidden="true"></canvas>' +
-    g.map
-      .map(
-        (_, i) =>
-          '<span class="floor-no" style="top:' +
-          (22 + (9 - i) * 38) +
-          'px">' +
-          String(i + 1).padStart(2, "0") +
-          "</span>",
-      )
-      .join("") +
-    html +
-    '</div></div><div class="map-legend"><b>' +
-    T("Route map", "路线地图") +
-    "</b>" +
-    (chosen
-      ? "<span>" +
-        E(ROOM[chosen.kind][0] + " " + nodeName(g, chosen)) +
-        "</span><small>" +
-        E(nodeDetail(g, chosen)) +
-        "</small>"
-      : "") +
-    '<small class="map-key"><i></i>' +
-    T("Available route", "可选路线") +
-    "</small></div></div>"
-  );
-}
-function enemyField(g, hps, event) {
-  const b = g.battle;
-  const enemies = b.enemies
-    .filter(
-      (e) =>
-        (hps[e.id] ?? e.hp) > 0 ||
-        event?.to === e.id ||
-        (g.phase === "round" && b.outcome === "victory" && e.hp === 0),
-    )
-    .slice(-6);
-  const field = enemies
-    .map((en) => {
-      const hp = hps[en.id] ?? en.hp;
-      const artDirectory = ACTS.some((a) => a.boss === en.type)
-        ? "./art/"
-        : "./art/foes/";
-      const portrait = '<img alt="" src="' + artDirectory + en.type + '.webp">';
-      const intents = b.intents.filter((a) => a.from === en.id);
-      return (
-        '<div data-unit="' +
-        en.id +
-        '" class="enemy ' +
-        (hp <= 0 ? "down " : "") +
-        (event?.to === en.id ? "impact" : "") +
-        '"><span class="enemy-sigil">' +
-        portrait +
-        "</span><div><b>" +
-        E(who(g, en)) +
-        "</b><small>" +
-        hp +
-        "/" +
-        en.max +
-        " HP" +
-        (en.b.mark != null ? " · " + T("Marked", "标记") : "") +
-        "</small></div>" +
-        '<span class="hp-track"><i style="width:' +
-        (hp / en.max) * 100 +
-        '%"></i></span>' +
-        (g.phase === "combat"
-          ? intents
-              .map(
-                (a) =>
-                  '<small class="intent">' +
-                  E(N(MOVES[a.id])) +
-                  " · " +
-                  E(intentText(g, a)) +
-                  "</small>",
-              )
-              .join("")
-          : "") +
-        "</div>"
-      );
-    })
-    .join("");
-  return (
-    '<div class="enemy-grid" style="--enemies:' +
-    Math.min(enemies.length, 4) +
-    '">' +
-    field +
-    "</div>"
-  );
-}
-export function hpFrame(g, cursor) {
-  if (g.phase !== "round" || cursor < 0) return {};
-  const b = g.battle,
-    hp = { ...b.before };
-  for (const e of b.events.slice(0, cursor + 1))
-    if (e.to && e.hp != null) hp[e.to] = e.hp;
-  return hp;
-}
-function central(g, ui, hp) {
-  const b = g.battle,
-    e = g.phase === "round" ? b.events[ui.cursor] : null;
-  const status =
-    T("Act ", "第 ") +
-    roman[g.act] +
-    (lang === "zh" ? " 幕" : "") +
-    " · " +
-    T("Floor ", "第 ") +
-    (g.node?.row + 1 || 1) +
-    (lang === "zh" ? " 层" : "") +
-    "/10";
-  let name = "",
-    content = "";
-  if (g.phase === "map") {
-    name = N(ACTS[g.act]);
-    content = routeMap(g, ui.focusNode);
-  }
-  if (["combat", "round"].includes(g.phase)) {
-    name =
-      (b.kind === "boss" ? N(ENEMIES[ACTS[g.act].boss]) : roomName(b.kind)) +
-      " · " +
-      T("Round ", "回合 ") +
-      b.round;
-    content = enemyField(g, hp, e);
-    if (g.phase === "combat")
-      content +=
-        '<p class="field-hint">' +
-        T(
-          "Tap a hero to change their skill or target.",
-          "点选英雄以更改技能或目标。",
-        ) +
-        (b.wave > 1 || b.waves.length
-          ? " · " + T("Wave ", "波次 ") + b.wave
-          : "") +
-        "</p>";
-    else {
-      const lines = {
-        continue: T("Round complete", "本回合结束"),
-        victory: T("Room cleared", "房间已通关"),
-        defeat: T("The expedition fell", "探险队倒下"),
-        wave: T("Reinforcements approach", "增援来袭"),
-      };
-      content +=
-        '<div class="round-strip"><span class="event-line ' +
-        (e?.k || "") +
-        '">' +
-        E(e ? eventText(g, e) : lines[b.outcome]) +
-        "</span><span>" +
-        btn(
-          "playback",
-          ui.playing ? T("Skip ▸", "跳过 ▸") : T("Replay ↺", "回放 ↺"),
-          {},
-          "field-button",
-        ) +
-        btn("log", T("Log", "记录"), {}, "field-button") +
-        "</span></div>";
-    }
-  }
-  if (g.phase === "draft") {
-    const starter = g.reward.kind === "starter";
-    name = starter
-      ? T("Choose your starting cards", "选择初始牌")
-      : T("Victory spoils", "胜利奖励");
-    content =
-      '<div class="room-intro"><span class="room-glyph">✦</span><p>' +
-      T(
-        starter
-          ? "Each player equips one starting upgrade. Tap a card to read its effect."
-          : "Each player takes one upgrade for a surviving party. Tap a card to inspect and assign it.",
-        starter
-          ? "每位玩家可装备一张初始升级牌，点击卡牌查看效果。"
-          : "每位玩家获得一次升级。点击卡牌查看效果并分配给英雄。",
-      ) +
-      "</p></div>";
-  }
-  if (g.phase === "relic") {
-    name = T("Choose a shared relic", "共选遗物");
-    content = story(
-      "◇",
-      T(
-        "Both players vote for one treasure. Its effect lasts for this expedition.",
-        "双方为同一件宝物投票。效果持续至本次登塔结束。",
-      ),
-      agreement(g),
-    );
-  }
-  if (g.phase === "event") {
-    const ev = EVENTS[g.node.event];
-    name = N(ev);
-    content = story("?", D(ev), agreement(g));
-  }
-  if (g.phase === "rest") {
-    name = T("Campfire", "营火");
-    content = story(
-      "♨",
-      T(
-        "Each player may rest their party or train one hero. The boss is waiting above the final camp.",
-        "每位玩家可为自己的队伍休整，或训练一名英雄。穿过最后的营地即将迎战首领。",
-      ),
-    );
-  }
-  if (g.phase === "shop") {
-    name = T("Traveling merchant", "旅行商人");
-    content = story(
-      "⚖",
-      T(
-        "Spend from separate purses. A purchased relic belongs to both parties.",
-        "使用各自的钱袋购物。购买的遗物由两队共享。",
-      ),
-    );
-  }
-  return (
-    '<section class="field ' +
-    g.phase +
-    '" style="--guardian:url(./art/' +
-    ACTS[g.act].boss +
-    '.webp)"><header class="field-head">' +
-    btn("menu", "☰", {}, "field-button", {
-      label: T("Expedition menu", "探险菜单"),
-    }) +
-    "<div><small>" +
-    E(status) +
-    "</small><h2>" +
-    E(name) +
-    "</h2></div>" +
-    '<span class="field-tools">' +
-    (g.phase === "combat"
-      ? btn("lines", "↝", {}, "field-button", {
-          label: T("Show planned target lines", "显示行动目标连线"),
-          pressed: ui.lines,
-        })
-      : "") +
-    btn("lang", T("中文", "EN"), {}, "field-button") +
-    "</span></header>" +
-    '<div class="field-body">' +
-    content +
-    "</div></section>"
-  );
-}
-const story = (icon, str, more = "") =>
-  '<div class="room-intro"><span class="room-glyph">' +
-  icon +
-  "</span><p>" +
-  E(str) +
-  (more ? "<small>" + E(more) + "</small>" : "") +
-  "</p></div>";
-const agreement = (g) =>
-  g.votes[0] != null && g.votes[1] != null && g.votes[0] !== g.votes[1]
-    ? T(
-        "Your votes differ. Either player can change their choice.",
-        "双方选择不同。任意一方都可以修改选择。",
-      )
-    : "";
-export function gameTable(g, ui) {
-  const hp = hpFrame(g, ui.cursor);
-  return (
-    '<div class="desk"><div class="table ' +
-    (ui.upright ? "upright" : "face-to-face") +
-    '">' +
-    seat(g, 1, ui.seats[1], hp) +
-    central(g, ui, hp) +
-    seat(g, 0, ui.seats[0], hp) +
-    (g.phase === "combat"
-      ? '<canvas aria-hidden="true" class="target-lines"></canvas>'
-      : "") +
-    (g.phase === "round"
-      ? '<div class="effects" aria-hidden="true"></div>'
-      : "") +
-    "</div></div>"
-  );
-}
 export function endScreen(g) {
   const won = g.phase === "victory",
     s = g.stats;
   return (
-    '<section class="end-screen"><div class="end-card"><img src="./art/' +
+    '<section class="end-screen"><div class="end-card"><img src="./art/bestiary/' +
     ACTS[g.act].boss +
     '.webp" alt=""><p class="eyebrow">' +
     T("Expedition record", "探险记录") +
@@ -469,15 +152,15 @@ function rulesBody() {
     [
       T("Choose together", "共同选路"),
       T(
-        "Place one phone between you. Each player controls a Fighter, Mage, and Priest. Pick a starting card, then vote for the same connected room to enter it. The last camp always leads to the boss.",
-        "手机放在两人中间，每位玩家控制战士、法师与牧师。领取初始牌，再各自为同一个可达房间投票。每幕最后的营地通向首领。",
+        "Share one screen. Each player controls a Fighter, Mage, and Priest. Pick a starting card, then vote for the same connected room to enter it. The last camp always leads to the boss.",
+        "两人共用一个屏幕，每位玩家控制战士、法师与牧师。领取初始牌，再各自为同一个可达房间投票。每幕最后的营地通向首领。",
       ),
     ],
     [
       T("Read the enemy", "观察敌人"),
       T(
-        "Enemies announce targets, damage, and Speed before planning. Tap any of your heroes to change a skill or target. Allies in either party can receive support. Both players can edit at once. Tap Ready again to unlock until both are ready.",
-        "敌人会提前展示目标、伤害与速度。点击自己的英雄改变技能或目标，可以支援任意队伍。双方可同时操作。在两人均就绪前，再点就绪即可解锁。",
+        "Enemies announce targets, damage, and Speed before planning. Tap a hero at the bottom to open their moves, then pick a skill and target. Allies in either party can receive support. Both players can edit at once. Tap Ready again to unlock until both are ready.",
+        "敌人会提前展示目标、伤害与速度。点击下方英雄打开行动菜单，再选技能和目标，可以支援任意队伍。双方可同时操作。在两人均就绪前，再点就绪即可解锁。",
       ),
     ],
     [
@@ -490,15 +173,15 @@ function rulesBody() {
     [
       T("Build for the climb", "积累构筑"),
       T(
-        "Clear every enemy and wave before drafting one card per player. Elites and bosses also grant a shared relic. HP carries between rooms. After a win, downed heroes return at 20% HP. Camps offer recovery or training. If all six heroes fall, the expedition ends.",
-        "消灭全部敌人与增援后，每人选一张升级牌。精英与首领还会掉落共享遗物。生命值跨房间保留，胜利后倒下的英雄以 20% 生命归队。可在营地休整或训练。六名英雄全部倒下则登塔结束。",
+        "Clear every enemy and wave before drafting one card per player. A fight can also yield a supply for the shared pack. Drop chances are 45% in normal fights, 65% for elites, and 85% for bosses. Elites and bosses also grant a shared relic. HP carries between rooms. After a win, downed heroes return at 20% HP. Camps offer recovery or training. If all six heroes fall, the expedition ends.",
+        "消灭全部敌人与增援后，每人选一张升级牌。普通战、精英战与首领战分别有 45%、65% 和 85% 概率掉落共用补给。精英与首领还会掉落共享遗物。生命值跨房间保留，胜利后倒下的英雄以 20% 生命归队。可在营地休整或训练。六名英雄全部倒下则登塔结束。",
       ),
     ],
     [
       T("Pause anywhere", "随时暂停"),
       T(
-        "The game saves on this browser after each choice. Use the center menu to suspend an expedition or turn both player areas upright.",
-        "每次选择后自动在此浏览器存档。中央菜单可暂停本次探险，也可将双方区域设为同向显示。",
+        "The game saves on this browser after each choice. Open the menu at the top left to pause and return to the title.",
+        "每次选择后自动在此浏览器存档。点击左上方菜单暂停并返回标题页。",
       ),
     ],
   ];
@@ -582,11 +265,13 @@ export function modal(g, ui, kind, arg) {
           .join("");
     }
     if (kind === "relics")
-      body += Object.values(RELICS)
+      body += Object.entries(RELICS)
         .map(
-          (r) =>
-            '<article class="guide-row"><h3>' +
-            E(r.icon + " " + N(r)) +
+          ([id, r]) =>
+            '<article class="guide-row illustrated">' +
+            artImage("goods", id) +
+            "<h3>" +
+            E(N(r)) +
             "</h3><p>" +
             E(D(r)) +
             "</p></article>",
@@ -597,7 +282,7 @@ export function modal(g, ui, kind, arg) {
         if (kind === "chapter" && i !== Number(arg)) return [];
         const boss = ENEMIES[a.boss];
         return [
-          '<article class="guardian"><img alt="" src="./art/' +
+          '<article class="guardian"><img alt="" src="./art/bestiary/' +
             a.boss +
             '.webp"><div><small>' +
             T("Act ", "第 ") +
@@ -632,15 +317,7 @@ export function modal(g, ui, kind, arg) {
           "/30",
       ) +
       '</p><div class="menu-list">' +
-      btn("close", T("Return to table", "返回桌面"), {}, "gold-button") +
-      btn(
-        "rotate",
-        ui.upright
-          ? T("Switch to face-to-face", "改为面对面")
-          : T("Face both seats upright", "两方同向显示"),
-        {},
-        "select-button",
-      ) +
+      btn("close", T("Return to expedition", "返回探险"), {}, "gold-button") +
       btn("guide", T("Open field guide", "打开探险指南"), {}, "select-button") +
       btn(
         "home",
@@ -666,6 +343,34 @@ export function modal(g, ui, kind, arg) {
       "</p>" +
       btn("close", T("Keep playing", "继续原存档"), {}, "select-button") +
       btn("new", T("Start a new climb", "开始新登塔"), {}, "gold-button");
+  } else if (kind === "foe") {
+    const en = unit(g, arg);
+    if (en) {
+      h = who(g, en);
+      body =
+        '<div class="foe-book">' +
+        artImage("bestiary", en.type) +
+        "<div><b>" +
+        en.hp +
+        "/" +
+        en.max +
+        " HP</b>" +
+        g.battle.intents
+          .filter((a) => a.from === en.id)
+          .map(
+            (a) =>
+              '<article class="guide-row"><h3>' +
+              E(N(MOVES[a.id])) +
+              "</h3><p>" +
+              E(intentText(g, a)) +
+              "</p><small>" +
+              T("Speed ", "速度 ") +
+              a.speed +
+              "</small></article>",
+          )
+          .join("") +
+        "</div></div>";
+    }
   } else if (kind === "log") {
     h = T("Battle record", "战斗记录");
     body = g.battle.records
