@@ -2250,3 +2250,20 @@ body {
     bottom: calc(clamp(36px, 13dvh, 76px) + 100px);
   }
 }
+
+.seating {display:flex;gap:4px;margin:8px 0;flex-wrap:wrap}
+.seating button {min-height:36px;padding:5px 14px}
+.seating [aria-pressed="true"] {background:#36594b;color:white}
+.battle-scene .popover-layer, .battle-scene:has(.round-actions) .popover-layer {inset:0}
+.face-table .battle-bottom,.face-table .companies {display:contents}
+.face-table .battle-party {width:min(94%,640px);align-self:center;flex:none}
+.face-table .battle-party.p0 {order:-2;transform:rotate(180deg)}
+.face-table .battle-party.p1 {order:3}
+.face-table .battle-air {order:0}
+.face-table .round-actions,.face-table .battle-hint {order:2}
+.face-table .battle-scene .scene-head {position:relative;order:-1;flex:none}
+.face-table .popover.p0,.face-table .room-party.p0,.face-table .vote-button.p0,.face-table .pack-chip.p0 {transform:rotate(180deg)}
+.face-table .room-party.p0 {position:absolute;top:max(70px,11dvh);left:8px;right:8px}
+.face-table .room-actions {grid-template-columns:1fr}
+.face-table .room-ledger {position:static}
+.face-table .room-scene .popover-layer {top:max(138px,22dvh)}
