@@ -13,7 +13,7 @@ import {
   potion,
 } from "./campaign.mjs";
 import { setPlan, targetsFor, ready, unit } from "./combat.mjs";
-import { showTargets, animateEvent } from "./effects.mjs";
+import { showTargets, animateEvent, FLIGHT_MS } from "./effects.mjs";
 import { setLanguage, lang, T } from "./display.mjs";
 import { landing, endScreen, modal } from "./screens.mjs";
 
@@ -123,6 +123,8 @@ function resetSeats() {
 }
 function stopPlayback() {
   lastEvent = null;
+  document.querySelector(".effects")?.replaceChildren();
+  ui.inFlight = false;
   clearTimeout(timer);
   ui.playing = false;
   ui.cursor = -1;
@@ -137,19 +139,22 @@ function startPlayback(force = false) {
     return;
   ui.cursor = 0;
   ui.playing = true;
-  const advance = () => {
-    if (!ui.playing || page !== "play" || g?.phase !== "round") return;
-    if (ui.cursor + 1 >= g.battle.events.length) {
-      ui.playing = false;
-      ui.cursor = -1;
-      paint();
-      return;
-    }
-    ui.cursor++;
+  const beginFlight = () => {
+    ui.inFlight = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     paint();
-    timer = setTimeout(advance, 410);
+    timer = setTimeout(() => {
+      ui.inFlight = false;
+      paint();
+      timer = setTimeout(() => {
+        if (++ui.cursor < g.battle.events.length) beginFlight();
+        else {
+          stopPlayback();
+          paint();
+        }
+      }, 440);
+    }, ui.inFlight ? FLIGHT_MS : 0);
   };
-  timer = setTimeout(advance, 410);
+  beginFlight();
 }
 // Updating existing controls in place lets a second finger complete its tap while
 // the other seat edits a plan. It also preserves focus and each seat’s scroll.

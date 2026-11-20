@@ -530,7 +530,7 @@ function battleParty(g, ui, p, hp) {
 function battleScene(g, ui) {
   const b = g.battle,
     round = g.phase === "round",
-    hp = hpFrame(g, ui.cursor),
+    hp = ui.inFlight && ui.cursor === 0 ? g.battle.before : hpFrame(g, ui.cursor - (ui.inFlight ? 1 : 0)),
     event = round ? b.events[ui.cursor] : null;
   const locale = [
     T("The gate road", "断门山道"),

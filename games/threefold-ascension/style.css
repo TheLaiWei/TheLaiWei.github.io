@@ -2267,3 +2267,33 @@ body {
 .face-table .room-actions {grid-template-columns:1fr}
 .face-table .room-ledger {position:static}
 .face-table .room-scene .popover-layer {top:max(138px,22dvh)}
+
+.cast-token {
+  font: normal clamp(50px, 13vmin, 78px)/1 system-ui;
+  filter: drop-shadow(0 2px 2px #30201199);
+}
+.cast-token.fireball, .cast-token.arrow {
+  width: clamp(70px, 19vmin, 106px);
+  height: clamp(36px, 9vmin, 55px);
+}
+.cast-token.fireball::before, .cast-token.arrow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--heading));
+}
+.cast-token.fireball {
+  filter: drop-shadow(0 0 5px #ff6822);
+}
+.cast-token.fireball::before {
+  background: radial-gradient(ellipse at 76% 50%, #fffde2 0 13%, #ffe56d 22%, #ff9a19 42%, #f04410 67%, #a4200a);
+  clip-path: polygon(0 22%,38% 30%,20% 2%,60% 15%,73% 2%,87% 10%,97% 29%,100% 51%,95% 75%,84% 94%,66% 99%,40% 78%,9% 92%,31% 65%,0 52%,32% 46%);
+}
+.cast-token.arrow::before {
+  background: linear-gradient(#f5dda0,#845725 65%,#382414);
+  clip-path: polygon(0 19%,17% 24%,27% 43%,71% 43%,68% 15%,100% 50%,68% 85%,71% 57%,27% 57%,17% 76%,0 81%,10% 50%);
+}
+.ember-impact {
+  position:absolute;width:70px;height:70px;border-radius:50%;
+  background:radial-gradient(circle,#fffbd5 5%,#ffc542 30%,#ff5a0d99 52%,transparent 72%);
+}
