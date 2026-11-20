@@ -80,7 +80,9 @@ let g = decode(read(SAVE)),
   dialogArg = null,
   timer = 0,
   noticeTimer = 0;
+const seatingKey = "threefold.ascension.seating";
 const ui = {
+  face: read(seatingKey) === "face",
   seats: [{ tab: "base" }, { tab: "base" }],
   focusNode: "",
   group: "Fighter",
@@ -226,11 +228,35 @@ function roads() {
       ctx.stroke();
     }
 }
+function positionMenus() {
+  const scene = app.querySelector(".battle-scene");
+  if (!scene) return;
+  const rect = scene.getBoundingClientRect();
+  const menus = scene.querySelectorAll(".popover");
+  menus.forEach(menu => {
+    const seat = menu.classList.contains("p0") ? 0 : 1;
+    const party = scene.querySelector(".battle-party.p" + seat);
+    const anchor = (party.querySelector(".hero-figure.active") || party).getBoundingClientRect();
+    const paired = menus.length === 2 && !ui.face;
+    const half = rect.width / 2;
+    const left = paired && seat === 1 ? half + 2 : 4;
+    const right = paired && seat === 0 ? half - 2 : rect.width - 4;
+    const width = Math.min(300, right - left, Math.round(rect.width * .74));
+    const x = Math.max(left, Math.min(right - width, (anchor.left + anchor.right) / 2 - rect.left - width / 2));
+    const below = ui.face && seat === 0;
+    const edge = below ? anchor.bottom - rect.top + 3 : rect.bottom - anchor.top + 3;
+    const limit = ui.face && menus.length === 2 ? rect.height / 2 : rect.height - 4;
+    menu.style.cssText = "position:absolute;width:" + width + "px;left:" + x + "px;" +
+      (below ? "top:" : "bottom:") + edge + "px;max-height:" + Math.max(50,limit-edge-2) + "px";
+  });
+}
 function paint() {
   document.title = T("Threefold Ascension · Lai Wei", "三英登塔 · Lai Wei");
-  if (page === "home" || !g) bodyPatch(landing(g));
+  if (page === "home" || !g) bodyPatch(landing(g, ui.face));
   else if (["victory", "defeat"].includes(g.phase)) bodyPatch(endScreen(g));
   else bodyPatch(gameTable(g, ui));
+  app.classList.toggle("face-table", ui.face);
+  positionMenus();
   if (page === "play" && g?.phase === "map") roads();
   if (page === "play" && g?.phase === "combat") showTargets(g, ui.lines);
   const event =
@@ -324,6 +350,13 @@ document.addEventListener("click", (e) => {
     { id, k, v, to, hero } = b.dataset,
     p = Number(b.dataset.p),
     slot = b.dataset.slot != null ? Number(b.dataset.slot) : undefined;
+  if (a === "seating") {
+    ui.face = v === "face";
+    store(seatingKey, v);
+    paint();
+    if (dlg.open) show(dialogKind, dialogArg);
+    return;
+  }
   if (a === "lang") {
     setLanguage(lang === "en" ? "zh" : "en");
     store(LANG, lang);
@@ -526,6 +559,7 @@ window.addEventListener("storage", (e) => {
   }
 });
 window.addEventListener("resize", () => {
+  positionMenus();
   if (g?.phase === "map" && page === "play") roads();
   if (g?.phase === "combat" && page === "play") showTargets(g, ui.lines);
 });

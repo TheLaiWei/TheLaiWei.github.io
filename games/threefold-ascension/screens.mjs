@@ -19,7 +19,12 @@ import {
 } from "./display.mjs";
 
 const seal = '<span class="brand-mark" aria-hidden="true"><i></i></span>';
-export function landing(g) {
+function seatingChoice(face) {
+  return '<div class="seating" role="group" aria-label="' + T("Player layout", "玩家布局") + '">' +
+    btn("seating", T("Same side", "同向并排"), {v:"same"}, "minor", {pressed: !face}) +
+    btn("seating", T("Face to face", "面对面"), {v:"face"}, "minor", {pressed: face}) + '</div>';
+}
+export function landing(g, face = false) {
   const resume = !!g && !["victory", "defeat"].includes(g.phase);
   const name =
     lang === "en" ? "Threefold<br><em>Ascension</em>" : "三英<br><em>登塔</em>";
@@ -48,7 +53,7 @@ export function landing(g) {
       "Two players command six heroes. Read the enemy’s next move, choose a path together, and climb to the Sunless Crown.",
       "两名玩家，各领三位英雄。读懂敌方意图，共选前路，向无日王庭进发。",
     ) +
-    '</p><div class="start-buttons">' +
+    '</p>' + seatingChoice(face) + '<div class="start-buttons">' +
     btn(
       resume ? "resume" : "new",
       resume
@@ -316,7 +321,7 @@ export function modal(g, ui, kind, arg) {
           g.stats.rooms +
           "/30",
       ) +
-      '</p><div class="menu-list">' +
+      '</p>' + seatingChoice(ui.face) + '<div class="menu-list">' +
       btn("close", T("Return to expedition", "返回探险"), {}, "gold-button") +
       btn("guide", T("Open field guide", "打开探险指南"), {}, "select-button") +
       btn(
