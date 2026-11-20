@@ -1,7 +1,7 @@
 import { ACTS, ENEMIES, EVENTS, MOVES, RELICS } from "./world.mjs";
 import { LABEL, hasRelic } from "./party.mjs";
 import { ROOM } from "./campaign.mjs";
-import { preview, unit, intentValue } from "./combat.mjs";
+import { preview, unit, intentValue, enemyValue } from "./combat.mjs";
 
 export let lang = "en";
 export function setLanguage(value) {
@@ -207,7 +207,7 @@ export function intentText(g, a) {
     " · " +
     amount +
     (m.kind === "channel"
-      ? T(" · interrupt at ", " · 打断需 ") + m.breakAt
+      ? T(" · interrupt at ", " · 打断需 ") + enemyValue(g.mode, m.breakAt)
       : "")
   );
 }

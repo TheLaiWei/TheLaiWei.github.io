@@ -1,7 +1,8 @@
 import { ACTS, ENEMIES, MOVES, RELICS } from "./world.mjs";
 import { CARDS } from "./cards.mjs";
 
-import { unit } from "./combat.mjs";
+import { soloCard } from "./party.mjs";
+import { enemyValue, unit } from "./combat.mjs";
 import {
   T,
   N,
@@ -24,7 +25,11 @@ function seatingChoice(face) {
     btn("seating", T("Same side", "同向并排"), {v:"same"}, "minor", {pressed: !face}) +
     btn("seating", T("Face to face", "面对面"), {v:"face"}, "minor", {pressed: face}) + '</div>';
 }
-export function landing(g, face = false) {
+export function landing(g, face = false, mode = "coop") {
+  const solo = mode === "solo";
+  const modes = '<div class="seating" role="group" aria-label="' + T("Players", "玩家人数") + '">' +
+    btn("mode", T("Single player", "单人"), {v:"solo"}, "minor", {pressed:solo}) +
+    btn("mode", T("Two players", "双人合作"), {v:"coop"}, "minor", {pressed:!solo}) + "</div>";
   const resume = !!g && !["victory", "defeat"].includes(g.phase);
   const name =
     lang === "en" ? "Threefold<br><em>Ascension</em>" : "三英<br><em>登塔</em>";
@@ -44,16 +49,16 @@ export function landing(g, face = false) {
     ) +
     '"></div>' +
     '<div class="cover-copy"><p class="eyebrow"><i></i>' +
-    T("A shared-phone adventure", "同屏双人合作冒险") +
+    (solo ? T("A solo expedition", "单人登塔冒险") : T("A shared-phone adventure", "同屏双人合作冒险")) +
     "</p><h1>" +
     name +
     "</h1>" +
     '<p class="premise">' +
-    T(
+    (solo ? T("Lead a Fighter, Mage, and Priest to the Sunless Crown. Choose their upgrades and plan all three moves each round.", "率领战士、法师和牧师挑战无日王庭。选择升级，每回合安排三位英雄的行动。") : T(
       "Two players command six heroes. Read the enemy’s next move, choose a path together, and climb to the Sunless Crown.",
       "两名玩家，各领三位英雄。读懂敌方意图，共选前路，向无日王庭进发。",
-    ) +
-    '</p>' + seatingChoice(face) + '<div class="start-buttons">' +
+    )) +
+    '</p>' + modes + (solo ? '' : seatingChoice(face)) + '<div class="start-buttons">' +
     btn(
       resume ? "resume" : "new",
       resume
@@ -128,7 +133,7 @@ export function endScreen(g) {
     "</h1><p>" +
     E(
       won
-        ? T("Both companies reached the summit.", "两支队伍共同抵达塔顶。")
+        ? g.mode === "solo" ? T("Your party reached the summit.", "你的队伍抵达了塔顶。") : T("Both companies reached the summit.", "两支队伍共同抵达塔顶。")
         : N(ACTS[g.act]) + " · " + T("Floor ", "楼层 ") + (g.node?.row + 1),
     ) +
     "</p>" +
@@ -152,7 +157,7 @@ export function endScreen(g) {
     "</div></section>"
   );
 }
-function rulesBody() {
+function rulesBody(solo) {
   const rules = [
     [
       T("Choose together", "共同选路"),
@@ -190,6 +195,11 @@ function rulesBody() {
       ),
     ],
   ];
+  if (solo) {
+    rules[0] = [T("Choose a route", "选择路线"), T("Pick a starting upgrade for your three heroes, then enter a connected room. Each act ends with a guardian.", "为三名英雄选择初始升级，然后进入相连的房间。每幕最后挑战一名守卫。")];
+    rules[1][1] = T("Read enemy intents, tap each hero to set a skill and target, then tap Fight to resolve the round.", "查看敌方意图，点击英雄选择技能和目标，再点击开始战斗结算本回合。");
+    rules[3][1] = T("Clear every wave to earn an upgrade. Elites and bosses also grant a relic. Health carries between rooms. After victory, fallen heroes return with 20% HP. If all three fall, the climb ends.", "消灭所有增援后领取升级牌。精英和首领还会掉落遗物。生命值跨房间保留，胜利后倒下的英雄以 20% 生命归队。三人全部倒下则登塔结束。");
+  }
   return rules
     .map(
       ([k, v]) =>
@@ -235,12 +245,13 @@ export function modal(g, ui, kind, arg) {
         )
         .join("") +
       "</div>";
-    if (kind === "rules" || kind === "guide") body += rulesBody();
+    if (kind === "rules" || kind === "guide") body += rulesBody(ui.mode === "solo");
     if (kind === "cards") {
       const group = ui.group || "Fighter";
       body +=
         '<div class="filter-tabs">' +
         ["Fighter", "Mage", "Priest", "General", "Cooperative"]
+          .filter((k) => ui.mode !== "solo" || k !== "Cooperative")
           .map((k) =>
             btn(
               "group",
@@ -251,7 +262,7 @@ export function modal(g, ui, kind, arg) {
           )
           .join("") +
         "</div>" +
-        CARDS.filter((c) => c.group === group)
+        CARDS.filter((c) => c.group === group && (ui.mode !== "solo" || soloCard(c)))
           .map(
             (c) =>
               '<article class="guide-row q' +
@@ -270,7 +281,7 @@ export function modal(g, ui, kind, arg) {
           .join("");
     }
     if (kind === "relics")
-      body += Object.entries(RELICS)
+      body += Object.entries(RELICS).filter(([id]) => ui.mode !== "solo" || id !== "standards")
         .map(
           ([id, r]) =>
             '<article class="guide-row illustrated">' +
@@ -301,7 +312,7 @@ export function modal(g, ui, kind, arg) {
             E(N(boss)) +
             "</b><small>" +
             E(
-              boss.hp +
+              enemyValue(ui.mode, boss.hp) +
                 " HP · " +
                 T("Changes phase at ", "阶段切换 ") +
                 Math.round(boss.phase.at * 100) +
@@ -321,7 +332,7 @@ export function modal(g, ui, kind, arg) {
           g.stats.rooms +
           "/30",
       ) +
-      '</p>' + seatingChoice(ui.face) + '<div class="menu-list">' +
+      '</p>' + (ui.mode === "solo" ? "" : seatingChoice(ui.face)) + '<div class="menu-list">' +
       btn("close", T("Return to expedition", "返回探险"), {}, "gold-button") +
       btn("guide", T("Open field guide", "打开探险指南"), {}, "select-button") +
       btn(

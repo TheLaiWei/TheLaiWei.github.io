@@ -2346,3 +2346,6 @@ body {
   .cast-token.fireball, .cast-token.arrow { width: 138px; height: 68px; }
   .combat-number { font-size: 42px; }
 }
+
+.solo-table .companies, .solo-table .room-actions { grid-template-columns: minmax(0, 1fr); }
+.solo-table .battle-party { width: min(100%, 56rem); margin-inline: auto; box-sizing: border-box; }

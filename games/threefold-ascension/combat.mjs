@@ -30,15 +30,17 @@ function nextSpeed(h, n) {
 function bless(h, n) {
   if (h) h.b.bless = Math.max(h.b.bless || 0, n);
 }
+export const enemyValue = (mode, value) => mode === "solo" ? Math.max(1, Math.round(value * 0.60)) : value;
+
 function addEnemy(g, type) {
   const d = ENEMIES[type],
     b = g.battle;
   const h = {
     id: "e" + ++b.serial,
     type,
-    hp: d.hp,
-    max: d.hp,
-    atk: d.atk,
+    hp: enemyValue(g.mode, d.hp),
+    max: enemyValue(g.mode, d.hp),
+    atk: g.mode === "solo" ? Math.round(d.atk * 0.72) : d.atk,
     def: d.def,
     res: d.res,
     speed: d.speed,
@@ -65,7 +67,7 @@ export function beginBattle(g, kind, formation, waves = []) {
     wave: 1,
     intents: [],
     plans: {},
-    ready: [false, false],
+    ready: g.players.map(() => false),
     flags: {},
     events: [],
     records: [],
@@ -135,7 +137,7 @@ function lockIntents(g) {
 function beginRound(g) {
   const b = g.battle;
   b.round++;
-  b.ready = [false, false];
+  b.ready = g.players.map(() => false);
   b.flags.sharedBreak = false;
   b.events = [];
   b.outcome = null;
@@ -155,7 +157,7 @@ function beginRound(g) {
   b.intents = lockIntents(g);
   b.plans = {};
   for (const h of living(g.heroes)) restorePlan(g, h);
-  b.ready = [!own(g, 0).length, !own(g, 1).length];
+  b.ready = g.players.map((_, p) => !own(g, p).length);
   g.phase = "combat";
 }
 export function restorePlan(g, h) {
@@ -466,8 +468,8 @@ function enemyAction(g, a) {
     }
     return;
   }
-  if (m.kind === "channel" && e.r.damage >= m.breakAt) {
-    emit(g, "interrupt", e, e, a.id, m.breakAt);
+  if (m.kind === "channel" && e.r.damage >= enemyValue(g.mode, m.breakAt)) {
+    emit(g, "interrupt", e, e, a.id, enemyValue(g.mode, m.breakAt));
     return;
   }
   for (const id of a.targets) {
@@ -478,11 +480,11 @@ function enemyAction(g, a) {
       continue;
     }
     if (m.kind === "heal") {
-      emit(g, "heal", e, original, a.id, heal(original, m.power));
+      emit(g, "heal", e, original, a.id, heal(original, enemyValue(g.mode, m.power)));
       continue;
     }
     if (m.kind === "ward") {
-      setWard(original, m.power);
+      setWard(original, enemyValue(g.mode, m.power));
       emit(g, "ward", e, original, a.id, original.r.ward);
       continue;
     }
@@ -595,13 +597,13 @@ export function preview(g, h, skill, t) {
 export function intentValue(g, a, h) {
   const m = MOVES[a.id],
     e = unit(g, a.from);
-  if (m.kind === "heal") return Math.min(h.max - h.hp, m.power);
-  if (m.kind === "ward") return m.power;
+  if (m.kind === "heal") return Math.min(h.max - h.hp, enemyValue(g.mode, m.power));
+  if (m.kind === "ward") return enemyValue(g.mode, m.power);
   if (m.kind === "summon") return 0;
   return Math.max(0, incoming(g, e, h, m) - (h.r.ward || 0));
 }
 export function ready(g, p) {
-  if (g.phase !== "combat" || ![0, 1].includes(p) || !own(g, p).length)
+  if (g.phase !== "combat" || !g.players[p] || !own(g, p).length)
     return false;
   const b = g.battle;
   b.ready[p] = !b.ready[p];

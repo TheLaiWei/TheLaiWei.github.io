@@ -49,15 +49,15 @@ import {
 
 function start(seed = 42) {
   const g = createRun(seed);
-  for (const p of [0, 1]) assert.ok(pickCard(g, p, "skip"));
+  for (const p of g.players.keys()) assert.ok(pickCard(g, p, "skip"));
   return g;
 }
 function enter(g, n) {
-  assert.ok(vote(g, 1, n.id));
+  if (g.players.length === 2) assert.ok(vote(g, 1, n.id));
   assert.ok(vote(g, 0, n.id));
 }
 function lock(g) {
-  for (const p of [0, 1])
+  for (const p of g.players.keys())
     if (g.phase === "combat" && !g.battle.ready[p]) assert.ok(ready(g, p));
 }
 function draft(g, p) {
@@ -141,15 +141,15 @@ function plan(g) {
   }
   lock(g);
 }
-function traverse(seed, restore = false) {
-  let g = createRun(seed),
+function traverse(seed, restore = false, mode = "coop") {
+  let g = createRun(seed, mode),
     steps = 0;
   const kinds = new Set(),
     fights = [];
   while (!["victory", "defeat"].includes(g.phase) && steps++ < 1100) {
-    if (restore) g = JSON.parse(JSON.stringify(g));
+    if (restore) g = restoreRun(JSON.parse(JSON.stringify(g)));
     if (g.phase === "draft") {
-      for (const p of [0, 1])
+      for (const p of g.players.keys())
         if (g.phase === "draft" && !g.done[p]) assert.ok(draft(g, p));
     } else if (g.phase === "map") {
       const options = available(g),
@@ -184,9 +184,9 @@ function traverse(seed, restore = false) {
       const id =
         pref.find((k) => g.reward.offers.includes(k)) || g.reward.offers[0];
       assert.ok(vote(g, 0, id));
-      assert.ok(vote(g, 1, id));
+      if (g.players.length === 2) assert.ok(vote(g, 1, id));
     } else if (g.phase === "rest") {
-      for (const p of [0, 1]) {
+      for (const p of g.players.keys()) {
         const party = g.heroes.filter((h) => h.owner === p),
           mage = party[1];
         if (party.some((h) => h.hp < h.max * 0.8) || (mage.training || 0) >= 3)
@@ -194,7 +194,7 @@ function traverse(seed, restore = false) {
         else assert.ok(camp(g, p, "train", mage.id, "training"));
       }
     } else if (g.phase === "shop") {
-      for (const p of [0, 1]) {
+      for (const p of g.players.keys()) {
         if (g.players[p].gold >= price(g, p, "relic") && !g.shop.sold)
           assert.ok(buy(g, p, "relic"));
         if (g.players[p].gold >= price(g, p, "potion"))
@@ -207,7 +207,7 @@ function traverse(seed, restore = false) {
       const opt = EVENTS[g.node.event].options,
         idx = opt.findIndex((_, i) => allowedEvent(g, i));
       assert.ok(vote(g, 0, idx));
-      assert.ok(vote(g, 1, idx));
+      if (g.players.length === 2) assert.ok(vote(g, 1, idx));
     } else assert.fail(g.phase);
   }
   assert.ok(steps < 1100);
@@ -552,4 +552,17 @@ test("seeded expeditions play through all three acts, and save/resume preserves 
       boss: 1,
     }).length,
   );
+});
+
+test("solo uses one party, filters partner rewards, and can clear all three guardians", () => {
+  const g = createRun(12, "solo");
+  assert.deepEqual(g.heroes.map(h => h.name), ["Fighter", "Mage", "Priest"]);
+  assert.equal(g.reward.offers.length, 1);
+  for (const c of CARDS.filter(c => c.group === "Cooperative" || ["mirror-courier", "mercy-writ"].includes(c.id)))
+    assert.deepEqual(recipients(g, 0, c), []);
+  const runs = Array.from({length: 24}, (_, i) => traverse(i + 1, false, "solo").g);
+  const wins = runs.filter(g => g.phase === "victory");
+  assert.ok(wins.length > 0);
+  assert.ok(wins.every(g => g.stats.bosses === 3 && g.stats.rooms === 30));
+  assert.deepEqual(traverse(3, true, "solo").g, runs[2]);
 });
