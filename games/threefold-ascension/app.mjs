@@ -50,9 +50,10 @@ function decode(raw) {
       x = box.run;
     if (
       x.v === VERSION &&
-      x.heroes.length === 6 &&
+      (x.mode || "coop") === mode &&
+      x.heroes.length === (mode === "solo" ? 3 : 6) &&
       x.map.length === 10 &&
-      x.players.length === 2 &&
+      x.players.length === (mode === "solo" ? 1 : 2) &&
       Array.isArray(x.relics) &&
       [
         "draft",
@@ -74,7 +75,10 @@ function decode(raw) {
   invalidSave = true;
   return null;
 }
-let g = decode(read(SAVE)),
+const modeKey = "threefold.ascension.mode";
+let mode = read(modeKey) === "solo" ? "solo" : "coop";
+const saveKey = () => mode === "solo" ? SAVE + ".solo" : SAVE;
+let g = decode(read(saveKey())),
   page = "home",
   dialogKind = "",
   dialogArg = null,
@@ -107,7 +111,7 @@ function notice(msg) {
 }
 function save() {
   stamp = Math.max(stamp + 1, Date.now());
-  saveAvailable = store(SAVE, JSON.stringify({ stamp, run: g }));
+  saveAvailable = store(saveKey(), JSON.stringify({ stamp, run: g }));
   if (!saveAvailable)
     notice(
       T(
@@ -249,7 +253,7 @@ function positionMenus() {
     const menuWidth = parseFloat(getComputedStyle(scene).getPropertyValue("--menu-width")) || 300;
     const width = Math.min(menuWidth, right - left, Math.round(rect.width * .74));
     const x = Math.max(left, Math.min(right - width, (anchor.left + anchor.right) / 2 - rect.left - width / 2));
-    const below = ui.face && seat === 0;
+    const below = mode === "coop" && ui.face && seat === 0;
     const edge = below ? anchor.bottom - rect.top + 3 : rect.bottom - anchor.top + 3;
     const limit = ui.face && menus.length === 2 ? rect.height / 2 : rect.height - 4;
     menu.style.cssText = "position:absolute;width:" + width + "px;left:" + x + "px;" +
@@ -258,10 +262,11 @@ function positionMenus() {
 }
 function paint() {
   document.title = T("Threefold Ascension · Lai Wei", "三英登塔 · Lai Wei");
-  if (page === "home" || !g) bodyPatch(landing(g, ui.face));
+  if (page === "home" || !g) bodyPatch(landing(g, ui.face, mode));
   else if (["victory", "defeat"].includes(g.phase)) bodyPatch(endScreen(g));
   else bodyPatch(gameTable(g, ui));
-  app.classList.toggle("face-table", ui.face);
+  app.classList.toggle("face-table", mode === "coop" && ui.face);
+  app.classList.toggle("solo-table", mode === "solo");
   positionMenus();
   if (page === "play" && g?.phase === "map") roads();
   if (page === "play" && g?.phase === "combat") showTargets(g, ui.lines);
@@ -277,7 +282,7 @@ function paint() {
 function show(kind, arg = null) {
   dialogKind = kind;
   dialogArg = arg;
-  dialogBody.innerHTML = modal(g, ui, kind, arg);
+  dialogBody.innerHTML = modal(g, { ...ui, mode }, kind, arg);
   if (!dlg.open) dlg.showModal();
   dialogBody.parentElement.scrollTop = 0;
 }
@@ -340,7 +345,7 @@ function mutation(f) {
   return true;
 }
 function newGame() {
-  g = createRun();
+  g = createRun(undefined, mode);
   invalidSave = false;
   page = "play";
   close();
@@ -356,6 +361,17 @@ document.addEventListener("click", (e) => {
     { id, k, v, to, hero } = b.dataset,
     p = Number(b.dataset.p),
     slot = b.dataset.slot != null ? Number(b.dataset.slot) : undefined;
+  if (a === "mode" && page === "home") {
+    mode = v === "solo" ? "solo" : "coop";
+    store(modeKey, mode);
+    stamp = 0;
+    invalidSave = false;
+    g = decode(read(saveKey()));
+    resetSeats();
+    ui.group = "Fighter";
+    paint();
+    return;
+  }
   if (a === "seating") {
     ui.face = v === "face";
     store(seatingKey, v);
@@ -554,7 +570,7 @@ document.addEventListener("keydown", (e) => {
   if (p != null) seatView(p, "base");
 });
 window.addEventListener("storage", (e) => {
-  if (e.key !== SAVE || !e.newValue) return;
+  if (e.key !== saveKey() || !e.newValue) return;
   const updated = decode(e.newValue);
   if (updated) {
     g = updated;

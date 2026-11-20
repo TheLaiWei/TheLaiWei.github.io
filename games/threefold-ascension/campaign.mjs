@@ -92,11 +92,12 @@ export function makeMap(g) {
   return map;
 }
 function resetVotes(g) {
-  g.votes = [null, null];
-  g.done = [false, false];
+  g.votes = g.players.map(() => null);
+  g.done = g.players.map(() => false);
 }
-export function createRun(seed = Math.floor(Math.random() * 4294967296)) {
+export function createRun(seed = Math.floor(Math.random() * 4294967296), mode = "coop") {
   const g = {
+    mode,
     v: VERSION,
     seed: seed >>> 0,
     rng: seed >>> 0,
@@ -104,11 +105,11 @@ export function createRun(seed = Math.floor(Math.random() * 4294967296)) {
     node: null,
     map: null,
     path: [],
-    heroes: makeHeroes(),
+    heroes: makeHeroes().filter((h) => mode !== "solo" || h.owner === 0),
     players: [
       { gold: 18, potions: 1 },
       { gold: 18, potions: 1 },
-    ],
+    ].slice(0, mode === "solo" ? 1 : 2),
     relics: [],
     supplies: {},
     bellAct: -1,
@@ -124,7 +125,7 @@ export function createRun(seed = Math.floor(Math.random() * 4294967296)) {
 function beginDraft(g, kind) {
   resetVotes(g);
   g.phase = "draft";
-  g.reward = { kind, offers: [draw(g, 0), draw(g, 1)], picks: [null, null] };
+  g.reward = { kind, offers: g.players.map((_, p) => draw(g, p)), picks: g.players.map(() => null) };
 }
 export const available = (g) =>
   !g.node ? g.map[0] : g.map.flat().filter((n) => g.node.next.includes(n.id));
@@ -165,7 +166,7 @@ function refreshOffers(g, owner, offers, count, purchased = []) {
   return valid.concat(extra).slice(0, count);
 }
 export function pickCard(g, p, id, hero, slot) {
-  if (g.phase !== "draft" || ![0, 1].includes(p) || g.done[p]) return false;
+  if (g.phase !== "draft" || (!Number.isInteger(p) || !g.players[p]) || g.done[p]) return false;
   const rw = g.reward;
   if (id === "skip") {
     if (rw.kind !== "starter") g.players[p].gold += 5;
@@ -187,7 +188,7 @@ function relicPool(g) {
   const fresh = shuffled(
     g,
     Object.keys(RELICS).filter(
-      (id) => !REPEATS.includes(id) && !hasRelic(g, id),
+      (id) => (g.mode !== "solo" || id !== "standards") && !REPEATS.includes(id) && !hasRelic(g, id),
     ),
   );
   return fresh.slice(0, 3).concat(shuffled(g, REPEATS)).slice(0, 3);
@@ -219,10 +220,10 @@ function enter(g, n) {
   }
   if (n.kind === "shop") {
     g.shop = {
-      stock: [draw(g, 0, 2), draw(g, 1, 2)],
+      stock: g.players.map((_, p) => draw(g, p, 2)),
       relic: relicPool(g)[0],
       sold: false,
-      bought: [[], []],
+      bought: g.players.map(() => []),
     };
     g.phase = "shop";
     return;
@@ -259,7 +260,7 @@ function applyEvent(g, i) {
   finishRoom(g);
 }
 export function vote(g, p, value) {
-  if (![0, 1].includes(p)) return false;
+  if ((!Number.isInteger(p) || !g.players[p])) return false;
   const phase = g.phase;
   if (phase === "map" && !available(g).some((n) => n.id === value))
     return false;
@@ -271,7 +272,7 @@ export function vote(g, p, value) {
     return false;
   if (!["map", "relic", "event"].includes(phase)) return false;
   g.votes[p] = value;
-  if (g.votes[0] !== g.votes[1]) return true;
+  if (!g.votes.every((v) => v === value)) return true;
   if (phase === "map")
     enter(
       g,
@@ -344,7 +345,7 @@ export function trainingChoices(g, p) {
   return out;
 }
 export function camp(g, p, action, hero, id) {
-  if (g.phase !== "rest" || ![0, 1].includes(p) || g.done[p]) return false;
+  if (g.phase !== "rest" || (!Number.isInteger(p) || !g.players[p]) || g.done[p]) return false;
   if (action === "heal")
     for (const h of g.heroes.filter((a) => a.owner === p))
       heal(h, campHeal(g, h));
@@ -388,7 +389,7 @@ export function price(g, p, item) {
 export function buy(g, p, item, hero, slot) {
   if (
     g.phase !== "shop" ||
-    ![0, 1].includes(p) ||
+    (!Number.isInteger(p) || !g.players[p]) ||
     g.done[p] ||
     g.shop.bought[p].includes(item)
   )
@@ -411,7 +412,7 @@ export function buy(g, p, item, hero, slot) {
   player.gold -= cost;
   g.shop.bought[p].push(item);
   if (BY_CARD[item] || item === "relic") {
-    for (const owner of [0, 1])
+    for (const owner of g.players.keys())
       g.shop.stock[owner] = refreshOffers(
         g,
         owner,
@@ -423,7 +424,7 @@ export function buy(g, p, item, hero, slot) {
   return true;
 }
 export function leaveShop(g, p) {
-  if (g.phase !== "shop" || ![0, 1].includes(p) || g.done[p]) return false;
+  if (g.phase !== "shop" || (!Number.isInteger(p) || !g.players[p]) || g.done[p]) return false;
   g.done[p] = true;
   if (g.done.every(Boolean)) finishRoom(g);
   return true;
@@ -431,7 +432,7 @@ export function leaveShop(g, p) {
 export function potion(g, p, id) {
   if (
     !["combat", "map", "shop", "rest"].includes(g.phase) ||
-    ![0, 1].includes(p) ||
+    (!Number.isInteger(p) || !g.players[p]) ||
     g.players[p].potions < 1 ||
     (g.phase === "combat" &&
       g.battle.ready[p] &&
@@ -496,7 +497,7 @@ export function restoreRun(g) {
 
 export function supplyTargets(g, p, item) {
   if (
-    ![0, 1].includes(p) ||
+    (!Number.isInteger(p) || !g.players[p]) ||
     !Object.hasOwn(SUPPLIES, item) ||
     !(g.supplies?.[item] > 0) ||
     ["round", "victory", "defeat"].includes(g.phase)
@@ -510,7 +511,7 @@ export function supplyTargets(g, p, item) {
   )
     return [];
   if (item === "bread") {
-    return [0, 1]
+    return Array.from(g.players.keys())
       .map((owner) => ({
         id: "party" + owner,
         amount: living(g.heroes)

@@ -22,7 +22,7 @@ import {
 import { panelContent } from "./panels.mjs";
 
 const regions = ["gate", "glass", "crown"];
-const teams = [0, 1];
+const seats = (g) => Array.from(g.players.keys());
 const base = (collection, id) => "./art/" + collection + "/" + id + ".webp";
 const floorText = (n) => T("Floor " + n, "第 " + n + " 层");
 const actText = (g) => T("Act " + roman[g.act], "第 " + roman[g.act] + " 幕");
@@ -56,7 +56,7 @@ function packButton(g, p, detailed = false) {
 function packBar(g) {
   return (
     '<div class="map-packs">' +
-    teams
+    seats(g)
       .map((p) =>
         btn(
           "bag",
@@ -71,12 +71,12 @@ function packBar(g) {
   );
 }
 function popovers(g, ui) {
-  const open = teams.filter((p) => ui.seats[p].tab !== "base");
+  const open = seats(g).filter((p) => ui.seats[p].tab !== "base");
   return (
     '<div class="popover-layer' +
     (open.length === 2 ? " paired" : "") +
     '">' +
-    teams
+    seats(g)
       .map((p) => {
         const s = ui.seats[p];
         if (s.tab === "base") return '<div class="popover-slot"></div>';
@@ -130,7 +130,7 @@ function routeMap(g, ui) {
       const open = next.some((x) => x.id === n.id),
         visited = g.path.includes(n.id),
         focus = n === selected;
-      const voters = teams.filter((p) => g.votes[p] === n.id);
+      const voters = seats(g).filter((p) => g.votes[p] === n.id);
       const name = [
         floorText(n.row + 1),
         nodeName(g, n),
@@ -188,11 +188,11 @@ function routeMap(g, ui) {
     .join("");
   const votes =
     g.votes[0] != null && g.votes[1] != null && g.votes[0] !== g.votes[1];
-  const controls = teams
+  const controls = seats(g)
     .map((p) =>
       btn(
         "vote",
-        "<i></i>" +
+        g.mode === "solo" ? T("Enter room", "进入房间") : "<i></i>" +
           E(teamName(p)) +
           " " +
           (g.votes[p] === selected.id ? "✓" : T("vote", "选择")),
@@ -208,7 +208,7 @@ function routeMap(g, ui) {
           "Different votes. Choose the same room to enter.",
           "双方选路不同，选择同一房间即可进入。",
         )
-      : T("Both parties vote to enter.", "两队选择同一房间即可进入。")
+      : g.mode === "solo" ? T("Choose a connected room.", "选择相连的房间。") : T("Both parties vote to enter.", "两队选择同一房间即可进入。")
     : g.path.includes(selected.id)
       ? T("Already visited", "已经到访")
       : T("Outside this floor’s available paths", "当前楼层无法进入");
@@ -263,7 +263,7 @@ function roomScene(g, ui) {
       title = starter
         ? T("Outfitting camp", "出发营地")
         : T("Victory spoils", "胜利奖励");
-      desc = starter
+      desc = g.mode === "solo" ? T("Choose an upgrade for one hero.", "为一名英雄选择升级。") : starter
         ? T(
             "Choose one starting upgrade for each party.",
             "两队各选一张升级牌，整装出发。",
@@ -284,7 +284,7 @@ function roomScene(g, ui) {
     case "shop":
       scene = "shop";
       title = T("The trail merchant", "山道商铺");
-      desc = T(
+      desc = g.mode === "solo" ? T("Buy supplies, upgrades, or a relic.", "购买补给、升级牌或遗物。") : T(
         "Spend each party’s gold on provisions, upgrades, or a shared relic.",
         "两队用各自的金币购置补给、升级牌或共享遗物。",
       );
@@ -297,7 +297,7 @@ function roomScene(g, ui) {
     case "relic":
       scene = "treasure";
       title = T("The relic vault", "遗物宝库");
-      desc = T(
+      desc = g.mode === "solo" ? T("Choose a relic for this climb.", "为本次登塔选择遗物。") : T(
         "Both parties must choose the same relic. It stays with you for this climb.",
         "两队选中同一件遗物后即可获得，效果持续至本次登塔结束。",
       );
@@ -315,7 +315,7 @@ function roomScene(g, ui) {
       E(D(SUPPLIES[item])) +
       "</span></div></div>"
     : "";
-  const actions = teams
+  const actions = seats(g)
     .map((p) => {
       const v = g.votes[p],
         voted = v != null && ["event", "relic"].includes(g.phase);
@@ -347,7 +347,7 @@ function roomScene(g, ui) {
       );
     })
     .join("");
-  const mismatch = g.votes.every((v) => v != null) && g.votes[0] !== g.votes[1];
+  const mismatch = g.players.length > 1 && g.votes.every((v) => v != null) && g.votes[0] !== g.votes[1];
   return (
     '<section class="journey room-scene" style="--scene:url(' +
     base("places", scene) +
@@ -504,7 +504,7 @@ function battleParty(g, ui, p, hp) {
     ? T("Party down", "队伍倒下")
     : b.ready[p]
       ? T("Ready ✓ · Edit", "已就绪 ✓ · 修改")
-      : T("Ready", "就绪");
+      : g.mode === "solo" ? T("Fight", "开始战斗") : T("Ready", "就绪");
   return (
     '<section class="battle-party p' +
     p +
@@ -604,7 +604,7 @@ function battleScene(g, ui) {
         "</p>"
       : "") +
     '<div class="companies">' +
-    teams.map((p) => battleParty(g, ui, p, hp)).join("") +
+    seats(g).map((p) => battleParty(g, ui, p, hp)).join("") +
     "</div></div>" +
     (round
       ? '<div class="effects" aria-hidden="true"></div>'

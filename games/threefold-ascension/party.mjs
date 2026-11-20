@@ -199,8 +199,11 @@ export function meets(g, h, need = []) {
     return !!source(h, key);
   });
 }
+export const soloCard = (c) => c.group !== "Cooperative" &&
+  !["mirror-courier", "mercy-writ"].includes(c.id);
+
 export function recipients(g, owner, c) {
-  if (!c) return [];
+  if (!c || (g.mode === "solo" && !soloCard(c))) return [];
   return living(g.heroes).filter(
     (h) =>
       h.owner === owner &&
