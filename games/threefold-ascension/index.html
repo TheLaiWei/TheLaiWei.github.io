@@ -12,15 +12,16 @@
       content="A cooperative fantasy tower climb for two people sharing a phone. Plan six heroes' moves together, choose a route, and defeat three guardians."
     />
     <title>Threefold Ascension · Lai Wei</title>
-    <link rel="stylesheet" href="./style.css?v=seating" />
+    <link rel="stylesheet" href="./style.css?v=projectiles" />
     <link rel="preload" as="image" href="./art/atlas/title.webp" />
     <script type="importmap">
       {
         "imports": {
+          "./effects.mjs": "./effects.mjs?v=projectiles",
           "./campaign.mjs": "./campaign.mjs?v=seating",
           "./combat.mjs": "./combat.mjs?v=seating",
           "./display.mjs": "./display.mjs?v=seating",
-          "./journey.mjs": "./journey.mjs?v=seating",
+          "./journey.mjs": "./journey.mjs?v=projectiles",
           "./panels.mjs": "./panels.mjs?v=seating",
           "./party.mjs": "./party.mjs?v=seating",
           "./screens.mjs": "./screens.mjs?v=seating"
@@ -38,6 +39,6 @@
       >Enable JavaScript to play Threefold Ascension. 请启用 JavaScript
       以游玩《三英登塔》。</noscript
     >
-    <script type="module" src="./app.mjs?v=seating"></script>
+    <script type="module" src="./app.mjs?v=projectiles"></script>
   </body>
 </html>

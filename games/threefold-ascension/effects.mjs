@@ -64,6 +64,19 @@ export function showTargets(g, on) {
     }
   }
 }
+export const FLIGHT_MS = 780;
+const hitIcons = {
+  Slash: "⚔️", Ambush: "🗡️", Riposte: "🗡️", Spark: "⚡", Discharge: "⚡",
+  Twin: "🌠", Smite: "☀️", Judgment: "☀️", aimed: "arrow", volley: "arrow",
+  spring: "🐾", worry: "🐾", ram: "🛡️", drop: "⛓️", shard: "💎", fan: "💎",
+  rake: "💎", refraction: "💎", ring: "⚡", stamp: "🔨", needle: "arrow",
+  seal: "🔥", scythe: "🌙", thrust: "🗡️", eclipse: "🌑", edict: "🌑",
+  Flare: "fireball", pitch: "fireball", spark: "fireball", whiteheat: "fireball",
+};
+const supportIcons = {
+  heal: "💚", ward: "🛡️", guard: "🛡️", taunt: "🛡️", intercept: "🛡️",
+  bless: "✨", speed: "🪽", summon: "📯", interrupt: "💥", miss: "💨",
+};
 export function animateEvent(g, event) {
   if (!event || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const table = document.querySelector(".table"),
@@ -72,39 +85,38 @@ export function animateEvent(g, event) {
   const target = locate(table, event.to),
     source = locate(table, event.src);
   if (!target || !source) return;
-  const rect = table.getBoundingClientRect(),
-    start = center(source, rect),
-    end = center(target, rect);
-  const isHit = event.k === "hit",
-    heal = event.k === "heal",
-    magic = ["Flare", "Spark", "Discharge", "Twin"].includes(event.skill);
+  const rect = layer.getBoundingClientRect();
+  const aim = el => center(el.querySelector(".hero-sprite, .foe-sprite") || el, rect);
+  const start = aim(source), end = aim(target);
+  const isHit = event.k === "hit", heal = event.k === "heal";
+  const icon = isHit ? hitIcons[event.skill] || "⚔️" : supportIcons[event.k] || "✨";
+  const dx = end.x - start.x, dy = end.y - start.y;
   const token = document.createElement("i");
-  token.className =
-    "cast-token " +
-    (isHit ? (magic ? "fire" : "slash") : heal ? "sun" : "sigil");
-  token.textContent = isHit ? (magic ? "✹" : "╱") : heal ? "✧" : "◇";
+  token.className = "cast-token";
+  if (icon === "fireball" || icon === "arrow") {
+    token.classList.add(icon);
+    token.style.setProperty("--heading", Math.atan2(dy, dx) + "rad");
+  } else token.textContent = icon;
   token.style.left = start.x + "px";
   token.style.top = start.y + "px";
   layer.append(token);
-  const dx = end.x - start.x,
-    dy = end.y - start.y;
-  const flight = token.animate(
-    [
-      { transform: "translate(-50%,-50%) scale(.45)", opacity: 0 },
-      { offset: 0.2, transform: "translate(-50%,-50%) scale(1)", opacity: 1 },
-      {
-        transform:
-          "translate(calc(-50% + " +
-          dx +
-          "px),calc(-50% + " +
-          dy +
-          "px)) scale(1.35)",
-        opacity: 0.95,
-      },
-    ],
-    { duration: 260, easing: "ease-in", fill: "forwards" },
-  );
-  flight.onfinish = () => token.remove();
+  const flight = token.animate([
+    { transform: "translate(-50%, -50%) scale(.75)", opacity: .9 },
+    { transform: "translate(calc(-50% + " + dx + "px),calc(-50% + " + dy + "px)) scale(1)", opacity: 1 },
+  ], {duration: FLIGHT_MS, easing: "ease-in-out", fill: "forwards"});
+  flight.onfinish = () => {
+    token.remove();
+    if (icon !== "fireball" || !layer.isConnected) return;
+    const burst = document.createElement("i");
+    burst.className = "ember-impact";
+    burst.style.left = end.x + "px";
+    burst.style.top = end.y + "px";
+    layer.append(burst);
+    burst.animate([
+      {transform:"translate(-50%,-50%) scale(.35)",opacity:1},
+      {transform:"translate(-50%,-50%) scale(1.3)",opacity:0},
+    ], {duration:240}).onfinish = () => burst.remove();
+  };
   if (isHit || heal || event.k === "ward") {
     const number = document.createElement("b");
     number.className = "combat-number " + (isHit ? "loss" : "gain");
@@ -118,7 +130,7 @@ export function animateEvent(g, event) {
         { offset: 0.3, opacity: 1 },
         { opacity: 0, transform: "translate(-50%,-135%)" },
       ],
-      { duration: 430, delay: 125, fill: "both" },
+      { duration: 430, delay: FLIGHT_MS, fill: "both" },
     );
     rise.onfinish = () => number.remove();
   }
