@@ -2297,3 +2297,52 @@ body {
   position:absolute;width:70px;height:70px;border-radius:50%;
   background:radial-gradient(circle,#fffbd5 5%,#ffc542 30%,#ff5a0d99 52%,transparent 72%);
 }
+
+/* Full-size landscape tablets have space for readable controls at table distance. */
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 720px) {
+  .battle-scene { --menu-width: 460px; }
+  .journey, .landing, #dialog { font-size: 20px; }
+  .landing { max-width: 1440px; }
+  .premise, .landing button, .chapter-text > span, .room-caption p,
+  .node-readout p, .guide-row p, .menu-list button { font-size: 20px; }
+  .seating button, .landing button, .menu-list button { min-height: 48px; }
+  .chapter-text strong, .popover > header > strong, .panel-body h3 { font-size: 26px; }
+  .chapter-text small, .landing .eyebrow, .nameplate small, .node-readout small,
+  .floor-tick, .route-actions small, .landmark-label, .guide-row small { font-size: 16px; }
+  .scene-head { width: 98%; grid-template-columns: 60px 1fr 60px; }
+  .hud-button { width: 56px; height: 56px; font-size: 26px; }
+  .lang-toggle { font-size: 19px; }
+  .turn-tools, .battle-hint, .round-actions small, .party-name, .intent-tag,
+  .hero-tag small, .foe-tag small, .intent-tag small { font-size: 17px; }
+  .turn-tools .minor, .battle-party .ready, .round-actions button, .pack-chip,
+  .vote-button, .party-action strong { min-height: 46px; font-size: 20px; }
+  .battle-party .pack-button, .room-party .pack-button { width: 54px; min-height: 48px; }
+  .battle-party .pack-button img, .pack-button img, .pack-chip img { width: 36px; height: 36px; }
+  .foe-line { width: min(97%, 1240px); grid-template-columns: repeat(var(--total), minmax(0, 1fr)); }
+  .foe { max-width: 265px; }
+  .foe-sprite { height: clamp(135px, 23dvh, 245px); }
+  .hero-sprite { height: clamp(160px, 25dvh, 272px); }
+  .hero-tag, .foe-tag { width: 100%; max-width: 225px; padding: 5px 8px; }
+  .hero-tag b, .foe-tag b { font-size: 23px; }
+  .vital { height: 6px; }
+  .face-table .battle-party { width: min(78%, 930px); }
+  .face-table .hero-sprite { height: clamp(85px, 13dvh, 152px); }
+  .face-table .foe-sprite { height: clamp(64px, 11dvh, 130px); }
+  .landmark { height: 6.4dvh; width: 8.5dvh; }
+  .floor-tick { min-width: 26px; line-height: 25px; }
+  .room-ledger, .map-foot { width: min(90%, 930px); }
+  .room-party .party-action, .room-party .pack-button { font-size: 19px; }
+  .popover { width: min(100%, 560px); }
+  .popover .panel-body { padding: 12px 16px 16px; }
+  .panel-body .skill-tab, .panel-body .target, .panel-body .row-button strong,
+  .panel-body .ready, .panel-body .minor, .panel-body .card-option strong,
+  .panel-body .pass, .party-action, .window-close { font-size: 20px; min-height: 44px; }
+  .panel-body .row-button strong, .panel-body .card-option strong { min-height: 0; }
+  .panel-body small, .panel-body .skill-explain, .panel-body .instruction,
+  .panel-body .effect-excerpt, .panel-body .history-entry small,
+  .supply-find small, .supply-find span { font-size: 17px; line-height: 1.3; }
+  .item-icon, .upgrade-art, .item-detail > img { width: 60px; height: 60px; }
+  .cast-token { font-size: 96px; }
+  .cast-token.fireball, .cast-token.arrow { width: 138px; height: 68px; }
+  .combat-number { font-size: 42px; }
+}
