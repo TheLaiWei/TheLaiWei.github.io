@@ -246,7 +246,8 @@ function positionMenus() {
     const half = rect.width / 2;
     const left = paired && seat === 1 ? half + 2 : 4;
     const right = paired && seat === 0 ? half - 2 : rect.width - 4;
-    const width = Math.min(300, right - left, Math.round(rect.width * .74));
+    const menuWidth = parseFloat(getComputedStyle(scene).getPropertyValue("--menu-width")) || 300;
+    const width = Math.min(menuWidth, right - left, Math.round(rect.width * .74));
     const x = Math.max(left, Math.min(right - width, (anchor.left + anchor.right) / 2 - rect.left - width / 2));
     const below = ui.face && seat === 0;
     const edge = below ? anchor.bottom - rect.top + 3 : rect.bottom - anchor.top + 3;
