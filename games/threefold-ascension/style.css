@@ -2349,3 +2349,50 @@ body {
 
 .solo-table .companies, .solo-table .room-actions { grid-template-columns: minmax(0, 1fr); }
 .solo-table .battle-party { width: min(100%, 56rem); margin-inline: auto; box-sizing: border-box; }
+
+.foe-line.guardian-field {
+  width: min(98%, 1240px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(2px, 1vw, 14px);
+}
+.guardian-flank { display: flex; align-items: end; justify-content: center; width: 100%; gap: 3px; }
+.guardian-flank .foe-sprite { height: clamp(42px, 10dvh, 110px); }
+.guardian-field .guardian { position: relative; isolation: isolate; max-width: 440px; }
+.guardian-field .guardian .foe-sprite {
+  height: clamp(95px, 28dvh, 300px);
+  transform-origin: bottom;
+  filter: drop-shadow(0 3px 3px #36251e99) drop-shadow(0 0 6px var(--guardian-light));
+}
+.guardian-gatewarden { --guardian-light: #ffb453; }
+.guardian-prism-engine { --guardian-light: #74e9ed; }
+.guardian-sovereign { --guardian-light: #d7a2ff; }
+.guardian::before {
+  content: ""; position: absolute; inset: 2% 0 10%; z-index: -1;
+  background: radial-gradient(ellipse at center, var(--guardian-light), transparent 68%);
+  opacity: .28; pointer-events: none;
+}
+.guardian.awakened::before { opacity: .62; }
+.guardian.awakened .foe-tag { outline: 2px solid var(--guardian-light); }
+.face-table .guardian-field .guardian .foe-sprite { height: clamp(76px, 19dvh, 216px); }
+.face-table .guardian-flank .foe-sprite { height: clamp(35px, 8dvh, 86px); }
+@media (max-width: 620px) {
+  .guardian-flank { flex-direction: column; align-items: center; }
+  .guardian-flank:has(.foe + .foe) .foe-sprite { height: clamp(28px, 5dvh, 46px); }
+}
+@media (orientation: landscape) and (max-height: 620px) {
+  .guardian-field .guardian .foe-sprite { height: clamp(62px, 23dvh, 122px); }
+}
+.guardian-seal {
+  position: absolute; pointer-events: none; width: clamp(52px, 10vmin, 110px);
+  aspect-ratio: 1; border: 3px solid var(--guardian-light); border-radius: 50%;
+  box-shadow: inset 0 0 11px var(--guardian-light), 0 0 10px var(--guardian-light);
+}
+.guardian-seal::after { content: ""; position: absolute; inset: 13%; border: 2px solid var(--guardian-light); }
+.guardian-seal.guardian-gatewarden::after {
+  border-radius: 15%; background: repeating-linear-gradient(90deg, transparent 0 18%, var(--guardian-light) 18% 23%);
+}
+.guardian-seal.guardian-prism-engine { border-radius: 14%; }
+.guardian-seal.guardian-prism-engine::after { transform: rotate(45deg); }
+.guardian-seal.guardian-sovereign::after { border-radius: 50%; background: #352348; box-shadow: 4px -2px 0 #ffdda1; }
+.guardian-seal.support-seal { border-style: dashed; }
