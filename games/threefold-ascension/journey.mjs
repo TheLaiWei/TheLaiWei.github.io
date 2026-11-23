@@ -403,52 +403,52 @@ function enemyField(g, hp, event) {
     ? living
     : b.enemies.filter((e) => e.b.start === b.round || e === b.enemies.at(-1));
   const columns = foes.length > 4 ? 3 : foes.length;
-  return (
-    '<div class="foe-line" style="--count:' +
-    columns +
-    ";--total:" +
-    foes.length +
-    '">' +
-    foes
-      .map((en) => {
-        const n = hp[en.id] ?? en.hp;
-        const intents =
-          g.phase === "combat" ? b.intents.filter((a) => a.from === en.id) : [];
-        const intent = intents[0];
-        return btn(
-          "foe",
-          artImage("bestiary", en.type, "foe-sprite") +
-            '<span class="foe-tag"><b>' +
-            E(who(g, en)) +
-            "</b>" +
-            hpBar(n, en.max) +
+  const guardian = b.kind === "boss" && foes.find(en => en.type === ACTS[g.act].boss);
+  function renderFoe(en) {
+    const n = hp[en.id] ?? en.hp;
+    const intents =
+      g.phase === "combat" ? b.intents.filter((a) => a.from === en.id) : [];
+    const intent = intents[0];
+    return btn(
+      "foe",
+      artImage("bestiary", en.type, "foe-sprite") +
+        '<span class="foe-tag"><b>' +
+        E(who(g, en)) +
+        (en === guardian && en.b.phaseRound ? T(" · II", " · 二阶段") : "") +
+        "</b>" +
+        hpBar(n, en.max) +
+        "<small>" +
+        n +
+        "/" +
+        en.max +
+        " HP</small></span>" +
+        (intent
+          ? '<span class="intent-tag">' +
+            E(N(MOVES[intent.id])) +
+            (intents.length > 1 ? " (+" + (intents.length - 1) + ")" : "") +
             "<small>" +
-            n +
-            "/" +
-            en.max +
-            " HP</small></span>" +
-            (intent
-              ? '<span class="intent-tag">' +
-                E(N(MOVES[intent.id])) +
-                (intents.length > 1 ? " (+" + (intents.length - 1) + ")" : "") +
-                "<small>" +
-                E(intentText(g, intent)) +
-                "</small></span>"
-              : ""),
-          { id: en.id, unit: en.id },
-          "foe" + (n <= 0 ? " down" : ""),
-          {
-            label: [
-              who(g, en),
-              n + " HP",
-              ...intents.map((a) => N(MOVES[a.id]) + " · " + intentText(g, a)),
-            ].join(" · "),
-          },
-        );
-      })
-      .join("") +
-    "</div>"
-  );
+            E(intentText(g, intent)) +
+            "</small></span>"
+          : ""),
+      { id: en.id, unit: en.id },
+      "foe" + (en === guardian ? " guardian guardian-" + en.type + (en.b.phaseRound ? " awakened" : "") : "") + (n <= 0 ? " down" : ""),
+      {
+        label: [
+          who(g, en),
+          n + " HP",
+          ...intents.map((a) => N(MOVES[a.id]) + " · " + intentText(g, a)),
+        ].join(" · "),
+      },
+    );
+  }
+  if (guardian) {
+    const guards = foes.filter(en => en !== guardian);
+    const flank = parity => '<div class="guardian-flank">' +
+      guards.filter((_, i) => i % 2 === parity).map(renderFoe).join("") + '</div>';
+    return '<div class="foe-line guardian-field">' + flank(0) + renderFoe(guardian) + flank(1) + '</div>';
+  }
+  return '<div class="foe-line" style="--count:' + columns + ';--total:' + foes.length + '">' +
+    foes.map(renderFoe).join("") + '</div>';
 }
 function heroFigure(g, h, hp, active) {
   const plan = g.battle.plans[h.id],
