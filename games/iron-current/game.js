@@ -319,7 +319,18 @@ document.addEventListener('keydown',e=>{
   }
   if(e.key==='Escape'){document.querySelector('.rail').classList.remove('open');cancel();}
 });
-try{
-  art=await loadArt();field=new Battlefield(art,pick,()=>({g,settings}));
-  $('loadmsg').hidden=true;field.focusCell(g.side==='US'?'B4':'K6',false);paint();if(g.phase==='handoff')handoff();else if(g.phase==='over')showResult();
-}catch(e){$('loadmsg').textContent='The battlefield could not load. Reload this page to reconnect.';console.error(e);}
+async function openBattlefield(){
+  try{
+    art=await loadArt();
+    field=new Battlefield(art,pick,()=>({g,settings}));
+    $('loadmsg').hidden=true;
+    field.focusCell(g.side==='US'?'B4':'K6',false);
+    paint();
+    if(g.phase==='handoff')handoff();
+    else if(g.phase==='over')showResult();
+  }catch(error){
+    $('loadmsg').textContent='The battlefield could not load. Reload this page to reconnect.';
+    console.error(error);
+  }
+}
+openBattlefield();
