@@ -43,6 +43,11 @@ ninja.data = [{
           description: "Machine Learning Assisted Diagnosis",
           section: "Projects",handler: () => {
               window.location.href = "/projects/4_project.html";
+            },},{id: "projects-iron-current",
+          title: 'Iron Current',
+          description: "Build a base and fight for two river crossings in a shared-screen, turn-based US–Soviet tactics game.",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/iron-current.html";
             },},{id: "projects-face-to-face-poker-classic",
           title: 'Face to Face Poker Classic',
           description: "The original green-table heads-up poker game, designed for two people sharing one phone.",
