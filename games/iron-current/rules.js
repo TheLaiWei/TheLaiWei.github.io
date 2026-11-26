@@ -1,21 +1,23 @@
 // Switchyard Crossing uses point-up hexes. Even-numbered rows are half a hex shorter.
-export const WIDTH = 1160;
-export const HEIGHT = 676;
-const DX = 86.7, DY = HEIGHT * 0.106;
+export const WIDTH = 1680;
+export const HEIGHT = 964;
+const DX = 86.7, DY = 71.656;
 export const RX = DX / 2, RY = 2 * DY / 3;
 export const sides = { US: 'Allied', SU: 'Soviet' };
 export const opposite = side => side === 'US' ? 'SU' : 'US';
-export const relays = ['G3', 'G7'];
+export const relays = ['J5', 'J9'];
+export const fords = ['J1', 'J13'];
+export const home = {US:'E7', SU:'O7'};
 export const cells = [];
 export const map = Object.create(null);
 const address = (col, row) => String.fromCharCode(64 + col) + row;
-for (let row = 1; row <= 9; row++) {
-  const columns = row % 2 ? 13 : 12;
+for (let row = 1; row <= 13; row++) {
+  const columns = row % 2 ? 19 : 18;
   for (let col = 1; col <= columns; col++) {
     const key = address(col, row);
     const c = { key, col, row, q: col - 1 - Math.floor((row - 1) / 2), r: row - 1,
-      x: WIDTH / 2 + (col - (columns + 1) / 2) * DX, y: HEIGHT / 2 + (row - 5) * DY,
-      mirror: address(columns + 1 - col, 10 - row), terrain: 'sand', near: [] };
+      x: WIDTH / 2 + (col - (columns + 1) / 2) * DX, y: HEIGHT / 2 + (row - 7) * DY,
+      mirror: address(columns + 1 - col, 14 - row), terrain: 'sand', near: [] };
     cells.push(c);
     map[key] = c;
   }
@@ -25,17 +27,19 @@ export function distance(a, b) {
   return Math.max(Math.abs(x.q-y.q), Math.abs(x.r-y.r), Math.abs(x.q-y.q+x.r-y.r));
 }
 const mirroredSet = start => new Set(start.flatMap(key => [key, map[key].mirror]));
-const groves = mirroredSet(['A1','B1','C2','D4','D8','A8','E6']);
-const seams = mirroredSet(['C6','E3']);
+const groves = mirroredSet(['D3','E3','F4','G6','G10','D10','H8','A1','B2','D2','B5','A8','C11','E12','F1','A12']);
+const seams = mirroredSet(['F8','H5','C3','F11','B9','G2']);
 for (const c of cells) {
   c.near = cells.filter(n => distance(c.key,n.key) === 1).map(n => n.key);
   if (relays.includes(c.key)) c.terrain = 'bridge';
-  else if (c.row % 2 ? c.col === 7 : c.col === 6 || c.col === 7) c.terrain = 'water';
+  else if (fords.includes(c.key)) c.terrain = 'ford';
+  else if (c.row % 2 ? c.col === 10 : c.col === 9 || c.col === 10) c.terrain = 'water';
   else if (seams.has(c.key)) c.terrain = 'ore';
   else if (groves.has(c.key)) c.terrain = 'grove';
-  else if ([3,7].includes(c.row) && c.col >= 3 && c.col <= 11) c.terrain = 'road';
+  else if (([5,9].includes(c.row) && c.col >= 3 && c.col <= 17) ||
+           ([1,13].includes(c.row) && c.col >= 8 && c.col <= 12)) c.terrain = 'road';
 }
-export const terrainNames = {sand:'Open sand',road:'Road',water:'Deep water',ore:'Ore seam',grove:'Grove',bridge:'Bridge relay'};
+export const terrainNames = {sand:'Open sand',road:'Road',water:'Deep water',ore:'Ore seam',grove:'Grove',bridge:'Bridge relay',ford:'Shallow ford'};
 export const structures = ['barracks','generator','refinery','works','turret','lab','device'];
 export const units = ['rifle','rocket','light','tank'];
 const common = {
@@ -84,26 +88,50 @@ export function grid(g,side) {
   }
   return {supply,draw,demand,online};
 }
-function place(g, side, kind, cell, ticks=0) {
-  const p={id:g.nextId++,side,kind,cell,hp:ticks ? 3 : spec(side,kind).hp,ticks,spent:false,queue:null,charge:0};
+function place(g, side, kind, cell, ticks=0, id=g.nextId++) {
+  const p={id,side,kind,cell,hp:ticks ? 3 : spec(side,kind).hp,ticks,spent:false,queue:null,charge:0};
   g.pieces.push(p);
   return p;
 }
 export function fresh(first='US') {
-  const g={version:1,id:'',revision:0,first,side:first,round:1,phase:'play',orders:2,req:true,
-    cash:{US:220,SU:220},streak:{US:0,SU:0},pieces:[],nextId:1,pending:null,turnLog:[],history:[],winner:null,ending:''};
-  for (const [cell,kind] of Object.entries({B5:'hq',B6:'generator',C6:'refinery',B4:'rifle',C5:'rifle'})) {
+  const g={version:2,id:'',revision:0,first,side:first,round:1,phase:'play',orders:2,
+    cash:{US:220,SU:220},streak:{US:0,SU:0},pieces:[],nextId:1,pending:[],reserve:[],arrivals:{US:[],SU:[]},turnLog:[],history:[],winner:null,ending:''};
+  for (const [cell,kind] of Object.entries({E7:'hq',E8:'generator',F8:'refinery',E6:'rifle',F7:'rifle'})) {
     place(g,'US',kind,cell);place(g,'SU',kind,map[cell].mirror);
   }
   return g;
 }
 export function usableSave(g) {
-  return !!(g && g.version===1 && sides[g.first] && sides[g.side] && ['play','handoff','over'].includes(g.phase) &&
-    Number.isInteger(g.round) && g.round>=1 && g.round<=16 && [0,1,2].includes(g.orders) && typeof g.req==='boolean' &&
+  return !!(g && g.version===2 && sides[g.first] && sides[g.side] && ['play','handoff','over'].includes(g.phase) &&
+    Number.isInteger(g.round) && g.round>=1 && g.round<=16 && [0,1,2].includes(g.orders) &&
     Number.isInteger(g.nextId) && Number.isInteger(g.revision) && typeof g.id==='string' && g.cash && g.streak &&
     Number.isFinite(g.cash.US) && Number.isFinite(g.cash.SU) && Array.isArray(g.turnLog) && Array.isArray(g.history) &&
+    g.history.every(e=>e && Number.isInteger(e.round) && sides[e.side] && typeof e.msg==='string') &&
     Array.isArray(g.pieces) && g.pieces.every(p=>p && sides[p.side] && spec(p.side,p.kind) && map[p.cell] && p.hp>0) &&
-    new Set(g.pieces.map(p=>p.cell)).size===g.pieces.length);
+    new Set(g.pieces.map(p=>p.cell)).size===g.pieces.length && Array.isArray(g.reserve) &&
+    g.reserve.every(r=>r && sides[r.side] && spec(r.side,r.kind)?.producer && map[r.origin]) &&
+    Array.isArray(g.pending) && g.pending.every(mark=>mark && map[mark.cell]) &&
+    Array.isArray(g.arrivals?.US) && Array.isArray(g.arrivals?.SU));
+}
+// The former 13-column map occupies the middle of the expanded battlefield.
+export function importLegacy(save) {
+  if(save?.version!==1 || !Array.isArray(save.pieces))return null;
+  const move=key=>address(key.charCodeAt(0)-64+3,Number(key.slice(1))+2);
+  const oldCell=key=>typeof key==='string' && /^[A-M][1-9]$/.test(key) &&
+    !(key[0]==='M' && Number(key[1])%2===0);
+  if(!save.pieces.every(p=>p && oldCell(p.cell)) || (save.pending && !oldCell(save.pending.cell)))return null;
+  const g=JSON.parse(JSON.stringify(save));
+  const relocateText=s=>String(s||'').replace(/\b[A-M][1-9]\b/g,k=>oldCell(k)?move(k):k);
+  g.version=2;delete g.req;g.reserve=[];g.arrivals={US:[],SU:[]};
+  g.pieces.forEach(p=>p.cell=move(p.cell));
+  g.pending=g.pending?[{...g.pending,cell:move(g.pending.cell)}]:[];
+  if(!usableSave(g))return null;
+  g.turnLog=g.turnLog.map(relocateText);
+  g.history.forEach(e=>{e.msg=relocateText(e.msg);});
+  g.ending=relocateText(g.ending);
+  for(const p of g.pieces)if(p.queue && p.queue.ticks===0)stockFinishedUnit(g,p);
+  if(g.phase==='play')releaseReserves(g,[]);
+  return g;
 }
 export function paths(g,p) {
   const found=new Map([[p.cell,{cost:0,route:[p.cell]}]]);
@@ -161,23 +189,69 @@ export function producers(g,kind) {
 export function purchaseReason(g,kind) {
   const t=spec(g.side,kind);
   if (!t?.cost || g.phase!=='play') return 'Production is unavailable.';
-  if (!g.req) return 'You used this turn’s requisition.';
   if (t.producer) {
     if (!completed(g,g.side,t.producer).length) return 'Build '+spec(g.side,t.producer).name+' first.';
     if (!producers(g,kind).length) return 'Your producers are busy or offline.';
   } else {
-    if (g.pieces.some(p=>p.side===g.side && p.ticks)) return 'Complete the current building site first.';
     if (!completed(g,g.side,t.needs).length) return 'Build '+spec(g.side,t.needs).name+' first.';
     if (kind==='device' && !labOnline(g,g.side)) return 'Bring a Signal Lab online.';
-    if (kind==='device' && completed(g,g.side,'device').length) return 'Your signature facility is already built.';
     if (!placements(g,kind).size) return kind==='refinery' ? 'Move infantry next to an empty ore seam.' : 'No legal site beside your base.';
   }
   if (g.cash[g.side]<t.cost) return 'Need '+(t.cost-g.cash[g.side])+' more credits.';
   return '';
 }
-export function exits(g,p) {
-  if (!p?.queue || p.queue.ticks || p.side!==g.side || !grid(g,p.side).online.has(p.id)) return [];
-  return map[p.cell].near.filter(k=>map[k].terrain!=='water' && !at(g,k));
+// A factory can marshal a unit through friendly occupied ground, up to three
+// hexes. Enemy pieces and the river, including its crossings, stop deployment.
+export function rallyExits(g,base) {
+  const occupied=new Map(g.pieces.map(p=>[p.cell,p]));
+  const seen=new Set([base.cell]);
+  let frontier=[base.cell];
+  for(let ring=1;ring<=3 && frontier.length;ring++){
+    const friendly=[],open=[];
+    for(const k of frontier)for(const next of map[k].near){
+      if(seen.has(next))continue;
+      seen.add(next);
+      if(['water','bridge','ford'].includes(map[next].terrain))continue;
+      const p=occupied.get(next);
+      if(!p)open.push(next);
+      else if(p.side===base.side)friendly.push(next);
+    }
+    if(open.length){
+      // Use the same forward-facing preference on the mirrored starting sides.
+      const oriented=k=>map[base.side==='US'?k:map[k].mirror];
+      return open.sort((a,b)=>oriented(b).x-oriented(a).x||oriented(a).y-oriented(b).y);
+    }
+    frontier=friendly;
+  }
+  return [];
+}
+function stockFinishedUnit(g,producer){
+  const unit={id:g.nextId++,kind:producer.queue.kind,side:producer.side,origin:producer.cell,producerId:producer.id};
+  producer.queue=null;g.reserve.push(unit);return unit;
+}
+function rememberArrival(g,p){
+  g.arrivals[p.side].push({id:p.id,kind:p.kind,cell:p.cell});
+}
+function releaseReserves(g,events){
+  const held=[];
+  for(const unit of g.reserve){
+    if(unit.side!==g.side){held.push(unit);continue;}
+    const bases=completed(g,unit.side,spec(unit.side,unit.kind).producer);
+    const origin=byId(g,unit.producerId);
+    if(origin)bases.sort((a,b)=>Number(b.id===origin.id)-Number(a.id===origin.id));
+    else if(!bases.length)bases.push(...completed(g,unit.side,'hq'));
+    let exit;
+    for(const base of bases){exit=rallyExits(g,base)[0];if(exit)break;}
+    if(!exit){
+      if(!unit.announced){log(g,spec(unit.side,unit.kind).name+' ready at '+unit.origin+'. Exits blocked; holding in reserve.');unit.announced=true;}
+      held.push(unit);continue;
+    }
+    const p=place(g,unit.side,unit.kind,exit,0,unit.id);
+    rememberArrival(g,p);
+    log(g,pieceName(p)+' deployed at '+exit+'. Ready to act.');
+    events.push({type:'ready',cell:exit,unit:p.id});
+  }
+  g.reserve=held;
 }
 export function gateUnits(g,gate) {
   return g.pieces.filter(p=>p.side===gate.side && mobile(p) && !p.spent && distance(gate.cell,p.cell)<=3);
@@ -240,13 +314,7 @@ function purchase(g,cmd,events) {
     place(g,g.side,cmd.kind,cmd.cell,t.ticks);
     log(g,t.name+' started at '+cmd.cell+'.');events.push({type:'build',cell:cmd.cell});
   }
-  g.cash[g.side]-=t.cost;g.req=false;
-}
-function deploy(g,cmd,events) {
-  const p=byId(g,cmd.id);
-  requireOrder(p && exits(g,p).includes(cmd.cell),'Choose an open exit next to the producer.');
-  const unit=place(g,g.side,p.queue.kind,cmd.cell);p.queue=null;
-  log(g,pieceName(unit)+' deployed at '+unit.cell+'. Ready to act.');events.push({type:'ready',cell:unit.cell});
+  g.cash[g.side]-=t.cost;
 }
 function special(g,cmd,events) {
   const p=byId(g,cmd.id), why=activationReason(g,p);requireOrder(!why,why);
@@ -258,7 +326,7 @@ function special(g,cmd,events) {
     log(g,'Vector Gate relocated '+pieceName(u)+' to '+u.cell+'.');
   } else {
     requireOrder(map[cmd.cell] && map[cmd.cell].terrain!=='water' && distance(p.cell,cmd.cell)<=6,'Mark land or a bridge within 6 hexes.');
-    g.pending={source:p.id,cell:cmd.cell};events.push({type:'mark',cell:cmd.cell});
+    g.pending.push({source:p.id,cell:cmd.cell});events.push({type:'mark',cell:cmd.cell});
     log(g,'Surge Array marked '+cmd.cell+'. Impact at the next Soviet upkeep.');
   }
   g.orders--;p.spent=true;p.charge=0;
@@ -283,11 +351,10 @@ function upkeep(g,events) {
   requireOrder(g.phase==='handoff','This turn has already begun.');
   g.side=opposite(g.side);
   if (g.side===g.first) g.round++;
-  g.phase='play';g.orders=2;g.req=true;g.turnLog=[];
+  g.phase='play';g.orders=2;g.turnLog=[];g.arrivals[g.side]=[];
   const own=()=>g.pieces.filter(p=>p.side===g.side);
   own().forEach(p=>p.spent=false);
-  if (g.side==='SU' && g.pending) {
-    const {source,cell}=g.pending;g.pending=null;
+  if (g.side==='SU') for(const {source,cell} of g.pending.splice(0)){
     if (grid(g,'SU').online.has(source) && labOnline(g,'SU')) {
       const area=footprint(cell);events.push({type:'pulse',cell});log(g,'Surge discharged at '+cell+'.');
       for (const p of [...g.pieces]) if (mobile(p) && area.includes(p.cell)) hit(g,p,3,events,source,'pulse');
@@ -296,7 +363,7 @@ function upkeep(g,events) {
   const finished=new Set();
   for (const p of own()) {
     if (p.ticks && --p.ticks===0) {
-      p.hp=spec(p.side,p.kind).hp;finished.add(p.id);log(g,pieceName(p)+' completed at '+p.cell+'.');
+      p.hp=spec(p.side,p.kind).hp;finished.add(p.id);rememberArrival(g,p);log(g,pieceName(p)+' completed at '+p.cell+'.');
       events.push({type:'ready',cell:p.cell});
     }
   }
@@ -305,7 +372,7 @@ function upkeep(g,events) {
   for (const p of own()) {
     if (!power.online.has(p.id)) continue;
     if (p.kind==='refinery') income+=30;
-    if (p.queue?.ticks && --p.queue.ticks===0) {log(g,spec(p.side,p.queue.kind).name+' ready to deploy at '+p.cell+'.');events.push({type:'ready',cell:p.cell});}
+    if (p.queue?.ticks && --p.queue.ticks===0)stockFinishedUnit(g,p);
     if (p.kind==='device' && lab && !finished.has(p.id)) p.charge=Math.min(3,p.charge+1);
   }
   if (g.round>1) {g.cash[g.side]+=income;log(g,'Collected '+income+' credits.');}
@@ -319,12 +386,12 @@ export function apply(g,cmd) {
     switch(cmd.type) {
       case 'field': field(next,cmd,events);break;
       case 'buy': purchase(next,cmd,events);break;
-      case 'deploy': deploy(next,cmd,events);break;
       case 'special': special(next,cmd,events);break;
       case 'end': end(next);break;
       default: throw new Error('Unknown order.');
     }
   }
+  if(next.phase==='play' && next.reserve.length)releaseReserves(next,events);
   next.revision++;
   return {state:next,events};
 }

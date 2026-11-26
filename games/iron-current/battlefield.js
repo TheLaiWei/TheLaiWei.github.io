@@ -1,4 +1,4 @@
-import {cells,map,WIDTH,HEIGHT,RX,RY,spec,at,byId,grid,footprint,relays,relaySide} from './rules.js';
+import {cells,map,WIDTH,HEIGHT,RX,RY,spec,byId,grid,footprint,relays,relaySide,home} from './rules.js?v=3';
 
 const $=id=>document.getElementById(id);
 const widths={hq:91,generator:73,refinery:84,barracks:75,works:94,lab:77,turret:63,device:79,tank:77,light:64,rifle:46,rocket:43,hauler:32};
@@ -45,7 +45,7 @@ function lightning(ctx,a,b,t) {
 }
 function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Could not load '+src));img.src=src;});}
 export async function loadArt(){
-  const [terrain,atlas,res]=await Promise.all([loadImage('assets/terrain.webp'),loadImage('assets/atlas.webp'),fetch('assets/atlas.json')]);
+  const [terrain,atlas,res]=await Promise.all([loadImage('assets/crossing-expanded.webp'),loadImage('assets/atlas.webp'),fetch('assets/atlas.json')]);
   if(!res.ok)throw new Error('Unit artwork unavailable.');
   const frames=await res.json(),icons=new Map();
   function draw(ctx,key,x,y,w,h,foot=.71,flip=false) {
@@ -71,7 +71,7 @@ export class Battlefield {
   constructor(art,pick,getState) {
     this.art=art;this.pick=pick;this.getState=getState;this.cv=$('field');this.ctx=this.cv.getContext('2d');
     this.radar=$('radar');this.rc=this.radar.getContext('2d');this.win=$('viewport');this.world=$('world');this.keys=new Map();
-    this.zoom=1;this.cx=WIDTH/2;this.cy=HEIGHT/2;this.focusKey='B4';this.hover=null;this.lastDraw=0;this.show={};this.drag=null;this.skipClick=false;
+    this.zoom=1;this.cx=WIDTH/2;this.cy=HEIGHT/2;this.focusKey=home.US;this.hover=null;this.lastDraw=0;this.show={};this.drag=null;this.skipClick=false;
     const container=$('hexes');
     for(const c of cells) {
       const b=document.createElement('button');b.className='hex';b.dataset.cell=c.key;b.tabIndex=-1;b.type='button';
@@ -112,9 +112,16 @@ export class Battlefield {
       pixels.data[i]=water?15:v*.35+6;pixels.data[i+1]=water?36:v*.64+10;pixels.data[i+2]=water?41:v*.34+9;
     }rc.putImageData(pixels,0,0);this.radarBase=radarBase;
     this.observer=new ResizeObserver(()=>this.layout());this.observer.observe(this.win);this.layout();this.focusCell(this.focusKey,false);
-    const loop=now=>{if(!document.hidden && now-this.lastDraw>=1000/(this.timeline?48:18)){this.draw(now);this.lastDraw=now;}requestAnimationFrame(loop);};requestAnimationFrame(loop);
+    const loop=now=>{if(!document.hidden && now-this.lastDraw>=1000/(this.timeline?40:15)){this.draw(now);this.lastDraw=now;}requestAnimationFrame(loop);};requestAnimationFrame(loop);
   }
   focusCell(key,focus){this.keys.get(this.focusKey).tabIndex=-1;this.focusKey=key;const b=this.keys.get(key);b.tabIndex=0;if(focus)b.focus({preventScroll:true});}
+  centerCell(key){
+    const c=map[key];if(!c)return;
+    this.focusCell(key,false);this.cx=c.x;this.cy=c.y;this.layout();
+  }
+  openSector(key){
+    this.zoom=this.win.clientWidth<650?2:1.35;this.centerCell(key);
+  }
   setZoom(n){if(this.zoom===1 && n>1 && this.show.selected){const p=byId(this.getState().g,this.show.selected);if(p){this.cx=map[p.cell].x;this.cy=map[p.cell].y;}}this.zoom=n;this.layout();}
   layout(){
     const w=this.win.clientWidth,h=this.win.clientHeight;
@@ -126,31 +133,43 @@ export class Battlefield {
     this.view=[this.cx-vx/2,this.cy-vy/2,vx,vy];
     this.world.style.width=dw+'px';this.world.style.height=dh+'px';
     this.world.style.left=(w/2-this.cx*this.scale)+'px';this.world.style.top=(h/2-this.cy*this.scale)+'px';
-    const ratio=Math.min(2,Math.max(1,this.scale*(window.devicePixelRatio||1)));
+    const ratio=Math.min(1.75,Math.max(.65,this.scale*(window.devicePixelRatio||1)));
     const px=Math.round(WIDTH*ratio);if(this.cv.width!==px){this.cv.width=px;this.cv.height=Math.round(HEIGHT*ratio);}
     $('zoom-out').disabled=this.zoom<=1;$('zoom-in').disabled=this.zoom>=2.5;
   }
   update(show){
-    this.show=show;const {g}=this.getState();this.powers={US:grid(g,'US'),SU:grid(g,'SU')};
+    this.show=show;const {g,settings,translate}=this.getState();this.powers={US:grid(g,'US'),SU:grid(g,'SU')};
+    const changed=this.labelState!==g || this.labelLang!==settings.lang;
+    const occupants=new Map(g.pieces.map(p=>[p.cell,p]));
+    this.reserveCount=new Map();
+    for(const unit of g.reserve)this.reserveCount.set(unit.origin,(this.reserveCount.get(unit.origin)||0)+1);
     const enabled=new Set([...(show.moves||[]),...(show.targets||[]),...(show.sites||[])]);
     for(const c of cells){
-      const p=at(g,c.key),b=this.keys.get(c.key);
-      b.className='hex'+(enabled.has(c.key)?' valid':'')+(p?(p.side===g.side?' owned':' enemy'):'');
-      b.setAttribute('aria-label',c.key+', '+c.terrain+(p?', '+(p.side==='US'?'Allied ':'Soviet ')+spec(p.side,p.kind).name+', '+p.hp+' HP':''));
-      b.setAttribute('aria-pressed',String(!!p && p.id===show.selected));
+      const p=occupants.get(c.key),b=this.keys.get(c.key);
+      const cls='hex'+(enabled.has(c.key)?' valid':'')+(p?(p.side===g.side?' owned':' enemy'):'');
+      if(b.className!==cls)b.className=cls;
+      if(changed){
+        let name=translate(c.key+', '+c.terrain+(p?', '+(p.side==='US'?'Allied ':'Soviet ')+spec(p.side,p.kind).name+', '+p.hp+' HP':''));
+        if(p?.ticks)name+=' · '+translate('Under construction')+' '+(spec(p.side,p.kind).ticks-p.ticks)+'/'+spec(p.side,p.kind).ticks;
+        b.setAttribute('aria-label',name);
+      }
+      const pressed=String(!!p && p.id===show.selected);
+      if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);
     }
+    this.labelState=g;this.labelLang=settings.lang;
     this.draw(performance.now());
   }
-  play(events,sound,done){
+  play(events,sound){
     const {settings}=this.getState();let time=0;const list=[];
     for(const e of events){
       if(e.style==='pulse'&&e.type==='hit'){const pulse=list.findLast?.(s=>s.type==='pulse')||list.filter(s=>s.type==='pulse').pop();if(pulse)(pulse.hits??=[]).push(e);continue;}
+      const previous=list.at(-1);
+      if(e.type==='ready' && previous?.type==='ready'){previous.cells.push(e.cell);continue;}
       let dur={move:Math.max(.32,((e.route?.length||1)-1)*.32),hit:1.15,pulse:1.35,jump:.85,mark:.55,order:.2,build:.42,ready:.38}[e.type]||.25;
       if(settings.motion===false)dur=Math.min(dur,.33);
-      list.push({...e,start:time,dur,sounded:false});time+=dur;
+      list.push({...e,cells:e.type==='ready'?[e.cell]:null,start:time,dur,sounded:false});time+=dur;
     }
-    if(!list.length){done();return;}
-    this.timeline={start:performance.now(),list,time,sound,done};
+    if(list.length)this.timeline={start:performance.now(),list,time,sound};
   }
   draw(now){
     const state=this.getState();if(!state?.g)return;
@@ -164,15 +183,16 @@ export class Battlefield {
       if(active && !active.sounded){active.sounded=true;tl.sound(active.type==='hit'?active.style:active.type);}
     }
     const frac=active?limit((elapsed-active.start)/active.dur,0,1):0;
-    const pending=g.pending?.cell||(active?.type==='pulse'?active.cell:null);
-    if(pending){
+    const marks=g.pending.map(m=>m.cell);
+    if(active?.type==='pulse')marks.push(active.cell);
+    for(const pending of marks){
       const alpha=settings.flashes===false?.63:.74+.19*Math.sin(t*3);
       for(const k of footprint(pending))outline(ctx,k,'rgba(101,60,135,.20)','rgba(217,163,247,'+alpha+')',2);
       outline(ctx,pending,null,ink.violet,3,5);
     }
     if(!tl || s.moves?.length || s.sites?.length || s.targets?.length){
       for(const k of s.moves||[])outline(ctx,k,'rgba(48,127,149,.15)','rgba(151,204,200,.82)',2);
-      for(const k of s.sites||[])outline(ctx,k,'rgba(191,157,56,.22)','#e5c574',2);
+      for(const k of s.sites||[])outline(ctx,k,'rgba(218,170,43,.30)','#ffe097',3);
       for(const k of s.targets||[])outline(ctx,k,'rgba(152,57,35,.18)','#f5986d',2);
       if(s.to)outline(ctx,s.to,'rgba(216,175,70,.23)',ink.aim,3);
       if(s.targetCell)outline(ctx,s.targetCell,null,ink.aim,3);
@@ -212,7 +232,8 @@ export class Battlefield {
       const fr=this.art.frames[p.side+'-'+p.kind];if(!fr)continue;
       const h=w*fr.h/fr.w;
       const online=this.powers?.[p.side]?.online.has(p.id);
-      ctx.save();if(p.ticks)ctx.globalAlpha=.58;else if(!online && !sp.move)ctx.filter='brightness(.57) saturate(.56)';
+      if(p.ticks)outline(ctx,p.cell,'rgba(184,131,24,.40)','#ffd267',3,2);
+      ctx.save();if(p.ticks)ctx.globalAlpha=.64;else if(!online && !sp.move)ctx.filter='brightness(.57) saturate(.56)';
       this.art.draw(ctx,p.side+'-'+p.kind,x,y,w,null,.71,flip);ctx.restore();
       if(p.kind==='refinery'&&!p.ticks && online){
         const f=ag*.43+(p.side==='US'?0:2),sign=p.side==='US'?1:-1;
@@ -222,9 +243,14 @@ export class Battlefield {
         ctx.strokeStyle='#e2b75b';ctx.lineWidth=2;
         for(const dx of [-25,-9,7,23]){ctx.beginPath();ctx.moveTo(x+dx,y+10);ctx.lineTo(x+dx,y-30);ctx.stroke();}
         for(const dy of [-25,-9,5]){ctx.beginPath();ctx.moveTo(x-27,y+dy);ctx.lineTo(x+26,y+dy);ctx.stroke();}
-        tag(ctx,p.cell,p.ticks+' T',ink.aim);
-      }else if(!online && sp.power){tag(ctx,p.cell,'OFFLINE','#edab72');}
-      else if(p.kind==='device'){tag(ctx,p.cell,p.charge===3?'READY':p.charge+'/3',p.charge===3?'#e1db9b':color);}
+        tag(ctx,p.cell,(settings.lang==='zh'?'施工 ':'BUILD ')+(sp.ticks-p.ticks)+'/'+sp.ticks,ink.aim);
+      }else if(this.reserveCount.has(p.cell)){
+        tag(ctx,p.cell,(settings.lang==='zh'?'待部署 ':'RESERVE ')+this.reserveCount.get(p.cell),'#ffd78c');
+      }else if(!online && sp.power){tag(ctx,p.cell,settings.lang==='zh'?'断电':'OFFLINE','#edab72');}
+      else if(p.queue){
+        const total=spec(p.side,p.queue.kind).ticks;
+        tag(ctx,p.cell,(settings.lang==='zh'?'生产 ':'TRAIN ')+(total-p.queue.ticks)+'/'+total,'#9bd5d6');
+      }else if(p.kind==='device'){tag(ctx,p.cell,p.charge===3?(settings.lang==='zh'?'就绪':'READY'):p.charge+'/3',p.charge===3?'#e1db9b':color);}
       const chosen=s.selected===p.id,enemy=s.target===p.id;
       if(chosen||enemy)bracket(ctx,x,y-h*.22,Math.max(20,w*.51),Math.max(14,h*.47),enemy?ink.aim:color);
       const hp=active?.type==='hit' && active.target.id===p.id && frac<.37?active.before:p.hp;
@@ -235,7 +261,7 @@ export class Battlefield {
     if(!tl && s.targetCell)tag(ctx,s.targetCell,s.targetCell,ink.aim);
     if(active)this.effect(ctx,active,frac,t,settings,g);
     this.drawRadar(g,ag);
-    if(tl && elapsed>=tl.time){this.timeline=null;tl.done();}
+    if(tl && elapsed>=tl.time)this.timeline=null;
   }
   effect(ctx,e,u,t,settings,g) {
     const art=this.art,soft=settings.flashes===false,still=settings.motion===false;
@@ -258,7 +284,7 @@ export class Battlefield {
         const w=(e.style==='burst'?46:87)*(.72+.34*Math.sin(v*Math.PI));
         ctx.save();ctx.globalAlpha=(soft?.6:.97)*Math.min(1,(1-v)*5);art.draw(ctx,'fx-'+frame,b.x+v*6,b.y+4,w,w*1.02,.85);ctx.restore();
       }
-      if(u>.39||still)tag(ctx,b.key,'−'+Math.min(e.before,e.before-e.after)+' HP',ink.aim);
+      if(u>.39||still)tag(ctx,b.key,'−'+Math.min(e.before,e.before-e.after)+(settings.lang==='zh'?' 生命':' HP'),ink.aim);
     }else if(e.type==='pulse'||e.type==='jump'){
       const k=e.cell||(u<.48?e.from:e.to),b=map[k];ctx.save();ctx.globalAlpha=soft?.58:.93;
       if(!still){
@@ -266,13 +292,14 @@ export class Battlefield {
         const frame=[8,9,10,11][Math.min(3,Math.floor(u*4))];art.draw(ctx,'fx-'+frame,b.x,b.y+7,e.type==='pulse'?171:81,e.type==='pulse'?112:78,.83);
       }
       ctx.restore();outline(ctx,k,null,ink.violet,3);
-      if(e.hits && u>.36)for(const h of e.hits)tag(ctx,h.target.cell,'−'+(h.before-h.after)+' HP',ink.violet);
+      if(e.hits && u>.36)for(const h of e.hits)tag(ctx,h.target.cell,'−'+(h.before-h.after)+(settings.lang==='zh'?' 生命':' HP'),ink.violet);
     }else if(e.type==='move' && !still) {
       const p=byId(g,e.id),a=map[e.route[0]],b=map[e.route[e.route.length-1]];
       if(p&&e.route.length===2){ctx.save();ctx.globalAlpha=.29*Math.sin(u*Math.PI);art.draw(ctx,'fx-7',mix(a.x,b.x,u)-Math.sign(b.x-a.x)*24,mix(a.y,b.y,u)+6,27,21,.7);ctx.restore();}
+    }else if(e.type==='ready'){
+      for(const cell of e.cells){outline(ctx,cell,null,'#bde99f',4);tag(ctx,cell,settings.lang==='zh'?'就绪':'READY','#cbeaab');}
     }else if(e.cell){
       outline(ctx,e.cell,null,e.type==='mark'?ink.violet:ink.aim,3);
-      if(e.type==='ready')tag(ctx,e.cell,'READY',ink.aim);
     }
   }
   drawRadar(g,t) {

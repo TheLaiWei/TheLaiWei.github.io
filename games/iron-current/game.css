@@ -14,3 +14,31 @@
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
 
 .mobile-end{display:none}@media(max-width:720px){.mobile-end{display:inline-block;font-size:.72rem;min-height:34px;padding:0 8px}}
+
+.top-tools,.dialog-tools{display:flex;align-items:stretch;gap:4px}
+.top-tools .switch,.dialog-tools .switch{padding:0 10px;min-height:30px;font-size:.85rem}
+.language{white-space:nowrap;text-transform:none}
+.dialog-tools .switch{min-height:36px}
+.owned-count:empty{display:none}
+.owned-count{position:absolute;top:3px;right:3px;padding:1px 4px;background:#1c2c25e6;border:1px solid #7f986e;color:#c9eca8;font:700 .72rem var(--mono)}
+.queue{min-height:54px;max-height:min(220px,27vh);padding:5px 6px;scrollbar-width:thin;overscroll-behavior:contain}
+.queue h3{position:sticky;top:-5px;z-index:1;background:#1a211a;padding:3px 1px 4px;font-size:.69rem}
+.queue .job{display:flex;align-items:center;gap:6px;min-height:42px;border-left:3px solid #d6ac59;padding:3px 4px}
+.job .sprite{display:block;width:35px;height:32px;object-fit:contain;flex:none}
+.job-copy{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.job-copy strong{font-size:.85rem;line-height:1.1;color:#f0e8c9}
+.job-copy small{font-size:.75rem;line-height:1.15;color:#e8cd8a}
+.job-copy progress{display:block;width:100%;height:4px;border:0;background:#182019;appearance:none;accent-color:#d8b467}
+.job-copy progress::-webkit-progress-bar{background:#182019}
+.job-copy progress::-webkit-progress-value{background:#d8b467}
+.job-copy progress::-moz-progress-bar{background:#d8b467}
+.queue .training{border-left-color:#8fc3c4}
+.queue .ready{border-left-color:#a5c980}
+.queue .ready small{color:#c4e4a7}
+.queue .reserve,.queue .paused{border-left-color:#f0a173;background:#42392c}
+.queue .reserve small,.queue .paused small{color:#ffc391}
+html[lang=zh-CN]{--head:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;--mono:"PingFang SC","Microsoft YaHei",monospace;font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
+html[lang=zh-CN] .readout p{line-height:1.38}
+@media(max-width:720px){.top-tools{gap:2px}.top-tools .switch{font-size:.72rem;padding:0 5px}.queue{max-height:28vh}.job-copy small{font-size:.78rem}}
+@media(max-width:420px){.mast{flex-wrap:wrap;align-content:center;gap:1px 4px}.mast #round{margin-left:0}.top-tools .switch{padding:0 4px}}
+@media(min-width:800px) and (pointer:coarse){.top-tools .switch{min-height:44px}.queue .job{min-height:48px}.job-copy strong{font-size:.95rem}.job-copy small{font-size:.83rem}}
