@@ -18,6 +18,8 @@
 .top-tools,.dialog-tools{display:flex;align-items:stretch;gap:4px}
 .top-tools .switch,.dialog-tools .switch{padding:0 10px;min-height:30px;font-size:.85rem}
 .language{white-space:nowrap;text-transform:none}
+.action-spent .pips b{color:#e5b66b}
+.action-spent #end,.action-spent #mobile-end{box-shadow:inset 0 0 0 2px #e3bd70}
 .dialog-tools .switch{min-height:36px}
 .owned-count:empty{display:none}
 .owned-count{position:absolute;top:3px;right:3px;padding:1px 4px;background:#1c2c25e6;border:1px solid #7f986e;color:#c9eca8;font:700 .72rem var(--mono)}

@@ -1,4 +1,4 @@
-import {cells,map,WIDTH,HEIGHT,RX,RY,spec,byId,grid,footprint,relays,relaySide,home} from './rules.js?v=3';
+import {cells,map,WIDTH,HEIGHT,RX,RY,spec,byId,grid,footprint,relays,relaySide,home} from './rules.js?v=4';
 
 const $=id=>document.getElementById(id);
 const widths={hq:91,generator:73,refinery:84,barracks:75,works:94,lab:77,turret:63,device:79,tank:77,light:64,rifle:46,rocket:43,hauler:32};

@@ -1,13 +1,16 @@
 // Switchyard Crossing uses point-up hexes. Even-numbered rows are half a hex shorter.
 export const WIDTH = 1680;
 export const HEIGHT = 964;
+export const ROUND_LIMIT = 100;
+export const ACTIONS_PER_TURN = 1;
+export const ACTION_SPENT = 'Action spent. End your turn.';
 const DX = 86.7, DY = 71.656;
 export const RX = DX / 2, RY = 2 * DY / 3;
 export const sides = { US: 'Allied', SU: 'Soviet' };
 export const opposite = side => side === 'US' ? 'SU' : 'US';
 export const relays = ['J5', 'J9'];
 export const fords = ['J1', 'J13'];
-export const home = {US:'E7', SU:'O7'};
+export const home = {US:'B7', SU:'R7'};
 export const cells = [];
 export const map = Object.create(null);
 const address = (col, row) => String.fromCharCode(64 + col) + row;
@@ -69,6 +72,7 @@ const faction = {
 export const spec = (side,kind) => faction[side]?.[kind] || common[kind];
 export const at = (g,cell) => g.pieces.find(p => p.cell === cell);
 export const byId = (g,id) => g.pieces.find(p => p.id === id);
+export const headquartersCell = (g,side=g.side) => g.pieces.find(p=>p.side===side && p.kind==='hq')?.cell || home[side];
 export const pieceName = p => spec(p.side,p.kind).name;
 export const mobile = p => !!spec(p.side,p.kind).move;
 export const footprint = cell => [cell,...map[cell].near];
@@ -94,16 +98,17 @@ function place(g, side, kind, cell, ticks=0, id=g.nextId++) {
   return p;
 }
 export function fresh(first='US') {
-  const g={version:2,id:'',revision:0,first,side:first,round:1,phase:'play',orders:2,
+  const g={version:3,id:'',revision:0,first,side:first,round:1,phase:'play',orders:ACTIONS_PER_TURN,
     cash:{US:220,SU:220},streak:{US:0,SU:0},pieces:[],nextId:1,pending:[],reserve:[],arrivals:{US:[],SU:[]},turnLog:[],history:[],winner:null,ending:''};
-  for (const [cell,kind] of Object.entries({E7:'hq',E8:'generator',F8:'refinery',E6:'rifle',F7:'rifle'})) {
+  for (const [cell,kind] of Object.entries({[home.US]:'hq',B8:'generator',B9:'refinery',B6:'rifle',C7:'rifle'})) {
     place(g,'US',kind,cell);place(g,'SU',kind,map[cell].mirror);
   }
   return g;
 }
-export function usableSave(g) {
-  return !!(g && g.version===2 && sides[g.first] && sides[g.side] && ['play','handoff','over'].includes(g.phase) &&
-    Number.isInteger(g.round) && g.round>=1 && g.round<=16 && [0,1,2].includes(g.orders) &&
+function validMatch(g,version,roundLimit,actionLimit) {
+  return !!(g && g.version===version && sides[g.first] && sides[g.side] && ['play','handoff','over'].includes(g.phase) &&
+    Number.isInteger(g.round) && g.round>=1 && g.round<=roundLimit &&
+    Number.isInteger(g.orders) && g.orders>=0 && g.orders<=actionLimit &&
     Number.isInteger(g.nextId) && Number.isInteger(g.revision) && typeof g.id==='string' && g.cash && g.streak &&
     Number.isFinite(g.cash.US) && Number.isFinite(g.cash.SU) && Array.isArray(g.turnLog) && Array.isArray(g.history) &&
     g.history.every(e=>e && Number.isInteger(e.round) && sides[e.side] && typeof e.msg==='string') &&
@@ -113,8 +118,9 @@ export function usableSave(g) {
     Array.isArray(g.pending) && g.pending.every(mark=>mark && map[mark.cell]) &&
     Array.isArray(g.arrivals?.US) && Array.isArray(g.arrivals?.SU));
 }
+export const usableSave = g=>validMatch(g,3,ROUND_LIMIT,ACTIONS_PER_TURN);
 // The former 13-column map occupies the middle of the expanded battlefield.
-export function importLegacy(save) {
+function expandLegacyMap(save) {
   if(save?.version!==1 || !Array.isArray(save.pieces))return null;
   const move=key=>address(key.charCodeAt(0)-64+3,Number(key.slice(1))+2);
   const oldCell=key=>typeof key==='string' && /^[A-M][1-9]$/.test(key) &&
@@ -122,15 +128,41 @@ export function importLegacy(save) {
   if(!save.pieces.every(p=>p && oldCell(p.cell)) || (save.pending && !oldCell(save.pending.cell)))return null;
   const g=JSON.parse(JSON.stringify(save));
   const relocateText=s=>String(s||'').replace(/\b[A-M][1-9]\b/g,k=>oldCell(k)?move(k):k);
-  g.version=2;delete g.req;g.reserve=[];g.arrivals={US:[],SU:[]};
+  g.version=2;g.reserve=[];g.arrivals={US:[],SU:[]};
   g.pieces.forEach(p=>p.cell=move(p.cell));
   g.pending=g.pending?[{...g.pending,cell:move(g.pending.cell)}]:[];
-  if(!usableSave(g))return null;
+  if(!validMatch(g,2,16,2))return null;
   g.turnLog=g.turnLog.map(relocateText);
   g.history.forEach(e=>{e.msg=relocateText(e.msg);});
   g.ending=relocateText(g.ending);
   for(const p of g.pieces)if(p.queue && p.queue.ticks===0)stockFinishedUnit(g,p);
-  if(g.phase==='play')releaseReserves(g,[]);
+  return g;
+}
+export function importLegacy(save) {
+  const old=save?.version===1?expandLegacyMap(save):save;
+  if(!validMatch(old,2,16,2))return null;
+  const g=JSON.parse(JSON.stringify(old));
+  // In older matches purchases and field orders were accounted for separately.
+  const purchased=g.req===false || g.turnLog.some(line=>/ (?:started at [A-S]\d+\.|ordered at [A-S]\d+\.)/.test(line));
+  g.orders=g.orders===2 && !purchased?ACTIONS_PER_TURN:0;
+  g.version=3;delete g.req;
+  if(g.revision===0 && g.round===1 && g.phase==='play' && g.orders && !g.history.length && g.pieces.length===10){
+    const starts={E7:home.US,E8:'B8',F8:'B9',E6:'B6',F7:'C7'};
+    const west=p=>p.side==='US'?p.cell:map[p.cell].mirror;
+    if(g.pieces.every(p=>starts[west(p)]))for(const p of g.pieces){
+      const cell=starts[west(p)];p.cell=p.side==='US'?cell:map[cell].mirror;
+    }
+  }
+  if(g.phase==='over' && g.round===16 && [
+    'More bridge relays held at the round limit.',
+    'Relay count tied. Remaining HQ health decided the match.',
+    'Relay count and HQ health were tied after round 16.'
+  ].includes(g.ending)){
+    // The second commander already ended round 16. The normal handoff opens 17.
+    g.phase='handoff';g.orders=0;g.winner=null;g.ending='';
+    log(g,'Round limit extended to '+ROUND_LIMIT+'. The next round is 17.');
+  }
+  if(g.phase==='play' && g.reserve.length)releaseReserves(g,[]);
   return g;
 }
 export function paths(g,p) {
@@ -161,11 +193,11 @@ export function canHit(p,from,target) {
 }
 export function activationReason(g,p) {
   if (g.phase!=='play' || !p || p.side!==g.side) return 'Choose one of your own pieces.';
+  if (!g.orders) return ACTION_SPENT;
   if (p.ticks) return 'Construction is still in progress.';
   if (!mobile(p) && !['turret','device'].includes(p.kind)) return 'Choose a unit, defense or charged device.';
   if (!grid(g,p.side).online.has(p.id)) return 'This facility needs more power.';
   if (p.spent) return 'This piece has already activated this turn.';
-  if (g.orders<=0) return 'Both field orders have been spent.';
   if (p.kind==='device') {
     if (!labOnline(g,p.side)) return 'Bring a Signal Lab online.';
     if (p.charge<3) return 'Device charge is '+p.charge+' / 3.';
@@ -189,6 +221,7 @@ export function producers(g,kind) {
 export function purchaseReason(g,kind) {
   const t=spec(g.side,kind);
   if (!t?.cost || g.phase!=='play') return 'Production is unavailable.';
+  if (!g.orders) return ACTION_SPENT;
   if (t.producer) {
     if (!completed(g,g.side,t.producer).length) return 'Build '+spec(g.side,t.producer).name+' first.';
     if (!producers(g,kind).length) return 'Your producers are busy or offline.';
@@ -248,7 +281,7 @@ function releaseReserves(g,events){
     }
     const p=place(g,unit.side,unit.kind,exit,0,unit.id);
     rememberArrival(g,p);
-    log(g,pieceName(p)+' deployed at '+exit+'. Ready to act.');
+    log(g,pieceName(p)+' deployed at '+exit+'. '+(g.orders?'Ready to act.':'Can act next turn.'));
     events.push({type:'ready',cell:exit,unit:p.id});
   }
   g.reserve=held;
@@ -289,7 +322,7 @@ function field(g,cmd,events) {
   const enemy=cmd.target==null ? null : byId(g,cmd.target);
   if (cmd.target!=null) requireOrder(canHit(p,to,enemy),'That target is outside the firing solution.');
   requireOrder(to!==p.cell || enemy,'Choose a destination or an enemy target.');
-  p.spent=true;g.orders--;
+  p.spent=true;
   const aim=enemy?.cell || to, origin=enemy ? to : (path.route.at(-2) || p.cell);
   const dx=map[aim].x-map[origin].x;
   if(dx && mobile(p)) p.flip=p.side==='US'?dx<0:dx>0;
@@ -329,7 +362,7 @@ function special(g,cmd,events) {
     g.pending.push({source:p.id,cell:cmd.cell});events.push({type:'mark',cell:cmd.cell});
     log(g,'Surge Array marked '+cmd.cell+'. Impact at the next Soviet upkeep.');
   }
-  g.orders--;p.spent=true;p.charge=0;
+  p.spent=true;p.charge=0;
 }
 function end(g) {
   if (g.side!==g.first) {
@@ -338,11 +371,11 @@ function end(g) {
       g.streak[s]=owners.every(o=>o===s)?g.streak[s]+1:0;
       if (g.streak[s]>=2) return finish(g,s,'Infantry held both bridge relays for two consecutive round ends.');
     }
-    if (g.round===16) {
+    if (g.round===ROUND_LIMIT) {
       const diff=owners.filter(s=>s==='US').length-owners.filter(s=>s==='SU').length;
       const hp=s=>completed(g,s,'hq')[0]?.hp||0;
       const score=diff||hp('US')-hp('SU');
-      return finish(g,score>0?'US':score<0?'SU':null,diff?'More bridge relays held at the round limit.':score?'Relay count tied. Remaining HQ health decided the match.':'Relay count and HQ health were tied after round 16.');
+      return finish(g,score>0?'US':score<0?'SU':null,diff?'More bridge relays held at the round limit.':score?'Relay count tied. Remaining HQ health decided the match.':'Relay count and HQ health were tied after round '+ROUND_LIMIT+'.');
     }
   }
   g.phase='handoff';
@@ -351,7 +384,7 @@ function upkeep(g,events) {
   requireOrder(g.phase==='handoff','This turn has already begun.');
   g.side=opposite(g.side);
   if (g.side===g.first) g.round++;
-  g.phase='play';g.orders=2;g.turnLog=[];g.arrivals[g.side]=[];
+  g.phase='play';g.orders=ACTIONS_PER_TURN;g.turnLog=[];g.arrivals[g.side]=[];
   const own=()=>g.pieces.filter(p=>p.side===g.side);
   own().forEach(p=>p.spent=false);
   if (g.side==='SU') for(const {source,cell} of g.pending.splice(0)){
@@ -383,12 +416,16 @@ export function apply(g,cmd) {
   if (cmd.type==='begin') upkeep(next,events);
   else {
     requireOrder(next.phase==='play','Begin the next turn to issue orders.');
-    switch(cmd.type) {
-      case 'field': field(next,cmd,events);break;
-      case 'buy': purchase(next,cmd,events);break;
-      case 'special': special(next,cmd,events);break;
-      case 'end': end(next);break;
-      default: throw new Error('Unknown order.');
+    if(cmd.type==='end')end(next);
+    else{
+      requireOrder(next.orders>0,ACTION_SPENT);
+      switch(cmd.type) {
+        case 'field': field(next,cmd,events);break;
+        case 'buy': purchase(next,cmd,events);break;
+        case 'special': special(next,cmd,events);break;
+        default: throw new Error('Unknown order.');
+      }
+      next.orders--;
     }
   }
   if(next.phase==='play' && next.reserve.length)releaseReserves(next,events);

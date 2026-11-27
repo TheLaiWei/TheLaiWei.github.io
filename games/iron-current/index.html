@@ -7,13 +7,13 @@
 <meta name="description" content="Command the Allies or Soviets in a two-player, shared-screen hex tactics game on Switchyard Crossing.">
 <title>Iron Current · Switchyard Crossing | Lai Wei</title>
 <link rel="icon" type="image/png" sizes="64x64" href="icon.png">
-<link rel="stylesheet" href="game.css?v=3">
+<link rel="stylesheet" href="game.css?v=4">
 </head>
 <body>
 <main id="console" data-side="US">
   <header class="top metal">
     <div class="top-tools"><button class="switch" id="options" data-i18n>Options</button><button class="switch language" id="language" lang="zh-CN">中文</button></div>
-    <div class="mast inset"><h1 data-i18n>Iron Current</h1><span class="sector-name" data-i18n>Switchyard Crossing</span><span id="round">Round 01 / 16</span></div>
+    <div class="mast inset"><h1 data-i18n>Iron Current</h1><span class="sector-name" data-i18n>Switchyard Crossing</span><span id="round">Round 01 / 100</span></div>
     <div class="credits inset"><span data-i18n>Credits</span><strong id="credits">000220</strong></div>
   </header>
   <section class="map-column" aria-label="Battlefield and orders">
@@ -33,8 +33,8 @@
     <div class="radio-line" aria-label="Latest field report"><span data-i18n>Field radio</span><div id="latest" aria-live="polite">Secure both bridge relays with infantry.</div><button id="open-log" class="text-button" data-i18n>Log</button><button class="switch mobile-end" id="mobile-end" disabled>End turn</button></div>
     <section class="inspector metal" aria-label="Current order">
       <div class="portrait inset" id="portrait"></div>
-      <div class="readout inset"><div id="readout-kicker">Field command</div><h2 id="readout-title">Switchyard Crossing</h2><p id="readout-text">Choose a unit or a production order.</p></div>
-      <div class="commands"><div class="pips inset"><span data-i18n>Field orders</span><b id="pips">2 / 2</b></div><div class="order-buttons"><button class="switch primary" id="confirm" disabled>Confirm order</button><button id="cancel" class="switch" hidden data-i18n>Cancel</button></div></div>
+      <div class="readout inset"><div id="readout-kicker">Field command</div><h2 id="readout-title">Switchyard Crossing</h2><p id="readout-text" data-i18n>Choose one action. Build, train a unit, or give a field order.</p></div>
+      <div class="commands"><div class="pips inset" aria-live="polite"><span data-i18n>Actions left</span><b id="pips">1 / 1</b></div><div class="order-buttons"><button class="switch primary" id="confirm" disabled>Confirm order</button><button id="cancel" class="switch" hidden data-i18n>Cancel</button></div></div>
     </section>
   </section>
   <aside class="rail metal" aria-label="Command sidebar">
@@ -52,6 +52,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 </main>
 <noscript>Enable JavaScript to play Iron Current. 请启用 JavaScript 以游玩《钢铁洪流》。</noscript>
-<script type="module" src="game.js?v=3"></script>
+<script type="module" src="game.js?v=4"></script>
 </body>
 </html>
