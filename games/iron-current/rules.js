@@ -3,7 +3,7 @@ export const WIDTH = 1680;
 export const HEIGHT = 964;
 export const ROUND_LIMIT = 100;
 export const ACTIONS_PER_TURN = 1;
-export const ACTION_SPENT = 'Action spent. End your turn.';
+export const ACTION_SPENT = 'Action already spent.';
 const DX = 86.7, DY = 71.656;
 export const RX = DX / 2, RY = 2 * DY / 3;
 export const sides = { US: 'Allied', SU: 'Soviet' };
@@ -409,26 +409,37 @@ function upkeep(g,events) {
     if (p.kind==='device' && lab && !finished.has(p.id)) p.charge=Math.min(3,p.charge+1);
   }
   if (g.round>1) {g.cash[g.side]+=income;log(g,'Collected '+income+' credits.');}
+  if (g.reserve.length) releaseReserves(g,events);
 }
-// Commands are validated against an isolated state. A rejected or stale order never spends resources.
-export function apply(g,cmd) {
-  const next=JSON.parse(JSON.stringify(g)), events=[];
-  if (cmd.type==='begin') upkeep(next,events);
-  else {
-    requireOrder(next.phase==='play','Begin the next turn to issue orders.');
-    if(cmd.type==='end')end(next);
-    else{
-      requireOrder(next.orders>0,ACTION_SPENT);
-      switch(cmd.type) {
-        case 'field': field(next,cmd,events);break;
-        case 'buy': purchase(next,cmd,events);break;
-        case 'special': special(next,cmd,events);break;
-        default: throw new Error('Unknown order.');
-      }
-      next.orders--;
-    }
-  }
-  if(next.phase==='play' && next.reserve.length)releaseReserves(next,events);
+// Older saves can be parked either before round scoring or after it.
+export function resumeTurn(g) {
+  if (g.phase==='play' && g.orders===0) return apply(g,{type:'end'}).state;
+  if (g.phase!=='handoff') return g;
+  const next=structuredClone(g);
+  upkeep(next,[]);
   next.revision++;
-  return {state:next,events};
+  return next;
+}
+
+// A confirmed order, round scoring and the next player's upkeep share one save.
+export function apply(g,cmd) {
+  requireOrder(g.phase==='play','Orders are unavailable.');
+  const next=structuredClone(g), events=[], upkeepEvents=[];
+  if (cmd.type==='end') next.orders=0;
+  else {
+    requireOrder(next.orders>0,ACTION_SPENT);
+    switch(cmd.type) {
+      case 'field': field(next,cmd,events);break;
+      case 'buy': purchase(next,cmd,events);break;
+      case 'special': special(next,cmd,events);break;
+      default: throw new Error('Unknown order.');
+    }
+    next.orders--;
+    if(next.phase==='play' && next.reserve.length)releaseReserves(next,events);
+  }
+  const outgoing=events.length?structuredClone(next):null;
+  if(next.phase==='play')end(next);
+  if(next.phase==='handoff')upkeep(next,upkeepEvents);
+  next.revision++;
+  return {state:next,outgoing,events,upkeepEvents};
 }

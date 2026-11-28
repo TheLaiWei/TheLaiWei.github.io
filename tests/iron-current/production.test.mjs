@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ROUND_LIMIT,apply,at,byId,cells,distance,fords,fresh,grid,headquartersCell,home,importLegacy,map,paths,placements,purchaseReason,rallyExits,relays,spec,usableSave} from '../../games/iron-current/rules.js';
+import {ROUND_LIMIT,apply,at,byId,cells,distance,fords,fresh,grid,headquartersCell,home,importLegacy,map,opposite,paths,placements,purchaseReason,rallyExits,relays,resumeTurn,spec,usableSave} from '../../games/iron-current/rules.js';
 import {zh} from '../../games/iron-current/zh.js';
 
 const run=(g,command)=>apply(g,command).state;
-const pass=g=>run(run(g,{type:'end'}),{type:'begin'});
+const pass=g=>run(g,{type:'end'});
 const nextTurn=g=>pass(pass(g));
 const build=(g,kind)=>run(g,{type:'buy',kind,cell:[...placements(g,kind)][0]});
 function add(g,side,kind,cell){
@@ -64,29 +64,31 @@ test('new headquarters and their powered starting buildings are mirrored near op
   for(const side of ['US','SU'])assert.ok(placements(fresh(side),'barracks').size>=3);
 });
 
-test('building, training and moving share one action in both directions for either side',()=>{
+test('a move, build or training order immediately starts the opposing turn for either side',()=>{
   for(const side of ['US','SU']){
     let g=fresh(side);
     const rifle=g.pieces.find(p=>p.side===side && p.kind==='rifle');
     const to=[...paths(g,rifle).keys()].find(k=>k!==rifle.cell);
     const move={type:'field',id:rifle.id,to};
+    const opening=structuredClone(g);
     assert.throws(()=>run(g,{type:'buy',kind:'barracks',cell:home[side]}));
-    assert.equal(g.orders,1);assert.equal(g.cash[side],220);
+    assert.throws(()=>run(g,{...move,to:home[side]}));
+    assert.deepEqual(g,opening);
     const moved=run(g,move);
-    assert.equal(moved.orders,0);assert.equal(moved.cash[side],220);
-    assert.throws(()=>build(moved,'barracks'),/Action spent/);
-    assert.throws(()=>run(moved,move),/Action spent/);
+    assert.equal(moved.side,opposite(side));assert.equal(moved.phase,'play');assert.equal(moved.orders,1);
+    assert.equal(moved.cash[side],220);assert.equal(byId(moved,rifle.id).cell,to);assert.equal(moved.revision,1);
+    assert.throws(()=>run(moved,move),/own pieces/);
     g=build(g,'barracks');
-    assert.equal(g.orders,0);assert.equal(g.cash[side],160);
-    assert.throws(()=>run(g,move),/Action spent/);
-    assert.throws(()=>build(g,'generator'),/Action spent/);
-    const other=pass(g);assert.equal(other.orders,1);assert.notEqual(other.side,side);
-    g=pass(other);const producer=g.pieces.find(p=>p.side===side&&p.kind==='barracks');
+    assert.equal(g.side,opposite(side));assert.equal(g.orders,1);assert.equal(g.cash[side],160);
+    assert.throws(()=>run(g,move),/own pieces/);
+    g=build(g,'generator');const producer=g.pieces.find(p=>p.side===side&&p.kind==='barracks');
+    assert.equal(g.side,side);assert.equal(g.round,2);
     assert.equal(producer.ticks,0);assert.equal(g.orders,1);
     g=run(g,{type:'buy',kind:'rifle',id:producer.id});
-    assert.equal(g.orders,0);assert.throws(()=>run(g,move),/Action spent/);
-    assert.throws(()=>run(JSON.parse(JSON.stringify(g)),{type:'buy',kind:'generator'}),/Action spent/);
-    g=nextTurn(g);assert.equal(g.orders,1);assert.equal(g.arrivals[side].length,1);
+    assert.equal(g.side,opposite(side));assert.equal(g.orders,1);assert.throws(()=>run(g,move),/own pieces/);
+    const loaded=JSON.parse(JSON.stringify(g));
+    assert.strictEqual(resumeTurn(loaded),loaded);
+    g=pass(loaded);assert.equal(g.orders,1);assert.equal(g.arrivals[side].length,1);
     assert.ok(usableSave(g));assert.equal(g.cash[side],225);
   }
 });
@@ -95,16 +97,16 @@ test('duplicate factories can be built on successive turns and run overlapping p
   for(const side of ['US','SU']){
     let g=fresh(side);g.cash[side]=1000;
     add(g,side,'barracks',side==='US'?'B5':map.B5.mirror);
-    g=build(g,'works');g=nextTurn(g);
+    g=build(g,'works');g=pass(g);
     assert.equal(g.pieces.find(p=>p.kind==='works').ticks,1);
     g=build(g,'works');assert.equal(g.pieces.filter(p=>p.kind==='works' && p.ticks).length,2);
-    g=nextTurn(g);
+    g=pass(g);
     const [a,b]=g.pieces.filter(p=>p.kind==='works');
     g=run(g,{type:'buy',kind:'tank',id:a.id});
-    assert.throws(()=>run(g,{type:'buy',kind:'tank',id:b.id}),/Action spent/);
-    g=nextTurn(g);g=run(g,{type:'buy',kind:'tank',id:b.id});
+    assert.equal(g.side,opposite(side));assert.throws(()=>run(g,{type:'buy',kind:'tank',id:b.id}));
+    g=pass(g);g=run(g,{type:'buy',kind:'tank',id:b.id});
     assert.equal(g.pieces.filter(p=>p.queue).length,2);
-    g=nextTurn(g);assert.equal(g.arrivals[side].length,1);
+    g=pass(g);assert.equal(g.arrivals[side].length,1);
     g=nextTurn(g);assert.equal(g.arrivals[side].length,1);
     const tanks=g.pieces.filter(p=>p.side===side && p.kind==='tank');
     assert.equal(tanks.length,2);assert.notEqual(tanks[0].cell,tanks[1].cell);
@@ -136,10 +138,10 @@ test('a fully surrounded factory frees its queue and keeps its tank across reloa
   const to=[...paths(g,rifle).keys()].find(k=>distance(k,f.factory.cell)>3);
   g=run(g,{type:'field',id:rifle.id,to});
   assert.equal(g.reserve.length,0);assert.equal(at(g,vacant).id,ticket);
-  assert.equal(at(g,vacant).kind,'tank');assert.equal(g.orders,0);
-  assert.match(g.history.at(-1).msg,/Can act next turn/);
+  assert.equal(at(g,vacant).kind,'tank');assert.equal(g.side,'SU');assert.equal(g.orders,1);
+  assert.match(g.history.findLast(e=>e.side==='US').msg,/Can act next turn/);
   assert.equal(g.history.filter(e=>e.msg.includes('holding in reserve')).length,1);
-  g=nextTurn(g);assert.equal(g.pieces.filter(p=>p.id===ticket).length,1);
+  g=pass(g);assert.equal(g.pieces.filter(p=>p.id===ticket).length,1);
 });
 
 test('reinforcements cannot emerge through an enemy screen or across water',()=>{
@@ -162,11 +164,13 @@ test('reserve tanks can use another factory or survive the destruction of their 
   g.pieces=g.pieces.filter(p=>p.cell!=='D5');
   const attacker=add(g,'SU','tank','D5');
   byId(g,factory.id).hp=1;
-  g=run(g,{type:'field',id:attacker.id,target:factory.id});
-  assert.equal(byId(g,factory.id),undefined);
-  assert.equal(g.reserve[0].id,ticket);
-  const nearHQ=rallyExits(g,at(g,home.US))[0];
-  g=pass(g);
+  const strike=apply(g,{type:'field',id:attacker.id,target:factory.id});
+  assert.equal(byId(strike.outgoing,factory.id),undefined);
+  assert.equal(strike.outgoing.reserve[0].id,ticket);
+  const nearHQ=rallyExits(strike.outgoing,at(strike.outgoing,home.US))[0];
+  g=strike.state;assert.equal(g.side,'US');
+  assert.ok(strike.events.some(e=>e.type==='hit'));
+  assert.ok(strike.upkeepEvents.some(e=>e.type==='ready' && e.unit===ticket));
   assert.equal(byId(g,ticket).cell,nearHQ);
   assert.equal(g.reserve.length,0);
 });
@@ -176,7 +180,7 @@ test('low power pauses production and completed vehicles deploy when power retur
   g.pieces=g.pieces.filter(p=>p.side!=='US'||p.kind!=='generator');
   assert.ok(!grid(g,'US').online.has(factory.id));
   g=nextTurn(g);assert.equal(byId(g,factory.id).queue.ticks,1);assert.equal(g.reserve.length,0);
-  g=build(g,'generator');g=nextTurn(g);
+  g=build(g,'generator');g=pass(g);
   assert.equal(byId(g,factory.id).queue,null);assert.ok(g.pieces.some(p=>p.side==='US'&&p.kind==='tank'));
 });
 
@@ -184,16 +188,15 @@ test('multiple Soviet arrays can launch on separate turns and each launch consum
   let g=fresh('SU');g.cash.SU=2000;
   for(const k of ['P8','P6'])add(g,'SU','generator',k);
   add(g,'SU','lab','N5');add(g,'SU','works','M7');
-  g=build(g,'device');g=nextTurn(g);g=build(g,'device');
+  g=build(g,'device');g=pass(g);g=build(g,'device');
   assert.equal(g.pieces.filter(p=>p.side==='SU'&&p.kind==='device').length,2);
-  for(let i=0;i<6;i++)g=nextTurn(g);
+  g=pass(g);for(let i=0;i<6;i++)g=nextTurn(g);
   const devices=g.pieces.filter(p=>p.side==='SU'&&p.kind==='device');assert.ok(devices.every(p=>p.charge===3));
   for(const d of devices){
     g=run(g,{type:'special',id:d.id,cell:d.cell});
-    assert.equal(g.orders,0);assert.equal(g.pending.length,1);
-    assert.throws(()=>build(g,'generator'),/Action spent/);
-    assert.throws(()=>run(g,{type:'special',id:devices[1].id,cell:d.cell}),/Action spent/);
-    g=nextTurn(g);
+    assert.equal(g.side,'US');assert.equal(g.orders,1);assert.equal(g.pending.length,1);
+    assert.throws(()=>run(g,{type:'special',id:devices[1].id,cell:d.cell}),/own pieces/);
+    g=pass(g);
   }
   assert.equal(g.pending.length,0);assert.equal(g.history.filter(e=>e.msg.includes('Surge discharged')).length,2);
 });
@@ -224,7 +227,8 @@ test('upgrading gives an untouched opening the edge bases and counts any prior p
   assert.equal(headquartersCell(keep,'SU'),'O7');assert.ok(usableSave(keep));
   for(const msg of ['Barracks started at P7.','Anvil Tank ordered at P7. Ready in 2 owner turns.']){
     const converted=importLegacy({...active,turnLog:[...active.turnLog,msg]});
-    assert.equal(converted.orders,0);assert.throws(()=>build(converted,'generator'),/Action spent/);
+    assert.equal(converted.orders,0);assert.throws(()=>build(converted,'generator'),/already spent/);
+    assert.equal(resumeTurn(converted).side,'US');
   }
   assert.equal(importLegacy({...active,orders:1}).orders,0);
   assert.equal(importLegacy({...active,orders:0}).orders,0);
@@ -239,7 +243,7 @@ test('a save stopped by the old cap continues at round 17 while decisive victori
     for(const reason of ['Relay count and HQ health were tied after round 16.','More bridge relays held at the round limit.','Relay count tied. Remaining HQ health decided the match.']){
       const resumed=importLegacy({...old,winner:'US',ending:reason});
       assert.equal(resumed.phase,'handoff');assert.equal(resumed.winner,null);assert.equal(resumed.ending,'');
-      const next=run(resumed,{type:'begin'});
+      const next=resumeTurn(resumed);
       assert.equal(next.round,17);assert.equal(next.side,first);assert.equal(next.orders,1);
       assert.ok(usableSave(next));
     }
@@ -248,6 +252,41 @@ test('a save stopped by the old cap continues at round 17 while decisive victori
       assert.equal(result.phase,'over');assert.equal(result.winner,'US');assert.equal(result.ending,decisive);
     }
   }
+});
+
+test('old spent turns and old handoff screens advance once across reload, income and bridge scoring',()=>{
+  for(const phase of ['play','handoff']){
+    const saved=fresh('US');saved.round=6;saved.side='SU';saved.revision=12;
+    saved.phase=phase;saved.orders=phase==='play'?0:1;
+    saved.streak.US=phase==='handoff'?1:0;
+    for(const cell of relays)add(saved,'US','rifle',cell);
+    const factory=add(saved,'US','works','D7');factory.queue={kind:'tank',ticks:1};
+    const before=structuredClone(saved),ready=resumeTurn(saved);
+    assert.deepEqual(saved,before);
+    assert.equal(ready.phase,'play');assert.equal(ready.side,'US');assert.equal(ready.round,7);
+    assert.equal(ready.revision,13);assert.equal(ready.orders,1);assert.equal(ready.streak.US,1);
+    assert.equal(ready.cash.US,saved.cash.US+50);assert.equal(ready.cash.SU,saved.cash.SU);
+    assert.equal(ready.pieces.filter(p=>p.kind==='tank').length,1);
+    const reloaded=JSON.parse(JSON.stringify(ready));
+    assert.strictEqual(resumeTurn(reloaded),reloaded);
+  }
+  const last=fresh();last.side='SU';last.round=100;last.orders=0;
+  const final=resumeTurn(last);
+  assert.equal(final.phase,'over');assert.equal(final.round,100);assert.strictEqual(resumeTurn(final),final);
+});
+
+test('a gate order relocates its unit before control changes, and an invalid landing preserves the turn',()=>{
+  const g=fresh('US'),unit=at(g,'C7');
+  add(g,'US','generator','D6');add(g,'US','lab','D8');
+  const gate=add(g,'US','device','D7');gate.charge=3;
+  const order={type:'special',id:gate.id,unit:unit.id};
+  assert.throws(()=>apply(g,{...order,cell:'B7'}));
+  assert.equal(gate.charge,3);assert.equal(g.side,'US');assert.equal(g.orders,1);
+  const {state,outgoing,events}=apply(g,{...order,cell:'E7'});
+  assert.equal(events[0].type,'jump');assert.equal(byId(outgoing,unit.id).cell,'E7');
+  assert.equal(state.phase,'play');assert.equal(state.side,'SU');assert.equal(state.orders,1);
+  assert.equal(byId(state,gate.id).charge,0);assert.equal(state.revision,1);
+  assert.equal(gate.charge,3);assert.equal(unit.cell,'C7');
 });
 
 test('both commanders get their turn in every round through 100 and the match cannot enter 101',()=>{
@@ -260,13 +299,16 @@ test('both commanders get their turn in every round through 100 and the match ca
         if([16,17,99,100].includes(round)){
           g=JSON.parse(JSON.stringify(g));assert.ok(usableSave(g));
         }
-        g=run(g,{type:'end'});
+        if(round>=99){
+          const p=g.pieces.find(p=>p.side===side && p.kind==='rifle');
+          g=run(g,{type:'field',id:p.id,to:[...paths(g,p).keys()].find(k=>k!==p.cell)});
+        }else g=pass(g);
         if(round===100 && side!==first)assert.equal(g.phase,'over');
-        else{assert.equal(g.phase,'handoff');g=run(g,{type:'begin'});}
+        else assert.equal(g.phase,'play');
       }
     }
     assert.equal(g.round,100);assert.equal(g.winner,null);assert.match(g.ending,/round 100/);
-    assert.ok(usableSave(g));assert.throws(()=>run(g,{type:'begin'}));
+    assert.ok(usableSave(g));assert.throws(()=>pass(g));
     assert.equal(usableSave({...g,round:101}),false);
   }
 });
@@ -289,8 +331,8 @@ test('Chinese preserves event meaning and coordinates across language switches',
   assert.equal(zh('R1 US · Barracks started at D6.'),'第 1 轮 盟军 · D6 的兵营开始施工。');
   assert.match(zh('Train Rifle squad, 35 credits'),/步枪小队.*35/);
   assert.equal(zh('Round 100 / 100'),'第 100 / 100 轮');
-  assert.match(zh('Action spent. End your turn.'),/行动已用完/);
-  assert.doesNotMatch(zh('4 / 4 HP · Move 3. Action spent. End your turn.'),/[A-Za-z]/);
+  assert.equal(zh('Pass turn'),'跳过回合');
+  assert.doesNotMatch(zh('4 / 4 HP · Move 3. Action already spent.'),/[A-Za-z]/);
   assert.match(zh('Lancer Tank deployed at B4. Can act next turn.'),/下回合可行动/);
   assert.match(zh('Round limit extended to 100. The next round is 17.'),/100.*17/);
 });
@@ -301,18 +343,13 @@ test('both opening factions can win by moving infantry to the two bridges on the
     const infantry=g.pieces.filter(p=>p.side===side && p.kind==='rifle');
     const targets=side==='US'?relays:[...relays].reverse();
     while(g.phase!=='over'){
-      if(g.side===side){
-        for(const [i,squad] of infantry.entries()){
-          const p=byId(g,squad.id),target=targets[i];
-          if(p.cell===target)continue;
-          const choices=[...paths(g,p)].filter(([k])=>k!==p.cell);
-          choices.sort(([a,pa],[b,pb])=>distance(a,target)-distance(b,target)||pa.cost-pb.cost);
-          g=run(g,{type:'field',id:p.id,to:choices[0][0]});
-          break;
-        }
-      }
-      g=run(g,{type:'end'});
-      if(g.phase==='handoff')g=run(g,{type:'begin'});
+      const i=infantry.findIndex((squad,i)=>byId(g,squad.id).cell!==targets[i]);
+      if(g.side===side && i>=0){
+        const p=byId(g,infantry[i].id),target=targets[i];
+        const choices=[...paths(g,p)].filter(([k])=>k!==p.cell);
+        choices.sort(([a,pa],[b,pb])=>distance(a,target)-distance(b,target)||pa.cost-pb.cost);
+        g=run(g,{type:'field',id:p.id,to:choices[0][0]});
+      }else g=pass(g);
     }
     assert.equal(g.winner,side);assert.equal(g.streak[side],2);
     assert.ok(g.round<ROUND_LIMIT);

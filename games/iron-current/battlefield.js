@@ -1,4 +1,4 @@
-import {cells,map,WIDTH,HEIGHT,RX,RY,spec,byId,grid,footprint,relays,relaySide,home} from './rules.js?v=4';
+import {cells,map,WIDTH,HEIGHT,RX,RY,spec,byId,grid,footprint,relays,relaySide,home} from './rules.js?v=5';
 
 const $=id=>document.getElementById(id);
 const widths={hq:91,generator:73,refinery:84,barracks:75,works:94,lab:77,turret:63,device:79,tank:77,light:64,rifle:46,rocket:43,hauler:32};
@@ -159,17 +159,18 @@ export class Battlefield {
     this.labelState=g;this.labelLang=settings.lang;
     this.draw(performance.now());
   }
-  play(events,sound){
+  play(events,sound,onComplete){
     const {settings}=this.getState();let time=0;const list=[];
     for(const e of events){
       if(e.style==='pulse'&&e.type==='hit'){const pulse=list.findLast?.(s=>s.type==='pulse')||list.filter(s=>s.type==='pulse').pop();if(pulse)(pulse.hits??=[]).push(e);continue;}
       const previous=list.at(-1);
       if(e.type==='ready' && previous?.type==='ready'){previous.cells.push(e.cell);continue;}
-      let dur={move:Math.max(.32,((e.route?.length||1)-1)*.32),hit:1.15,pulse:1.35,jump:.85,mark:.55,order:.2,build:.42,ready:.38}[e.type]||.25;
+      let dur={move:Math.max(.24,((e.route?.length||1)-1)*.24),hit:.85,pulse:1.35,jump:.7,mark:.4,order:.2,build:.32,ready:.38}[e.type]||.25;
       if(settings.motion===false)dur=Math.min(dur,.33);
       list.push({...e,cells:e.type==='ready'?[e.cell]:null,start:time,dur,sounded:false});time+=dur;
     }
-    if(list.length)this.timeline={start:performance.now(),list,time,sound};
+    if(list.length)this.timeline={start:performance.now(),list,time,sound,onComplete};
+    else onComplete?.();
   }
   draw(now){
     const state=this.getState();if(!state?.g)return;
@@ -261,7 +262,7 @@ export class Battlefield {
     if(!tl && s.targetCell)tag(ctx,s.targetCell,s.targetCell,ink.aim);
     if(active)this.effect(ctx,active,frac,t,settings,g);
     this.drawRadar(g,ag);
-    if(tl && elapsed>=tl.time)this.timeline=null;
+    if(tl && elapsed>=tl.time){this.timeline=null;tl.onComplete?.();}
   }
   effect(ctx,e,u,t,settings,g) {
     const art=this.art,soft=settings.flashes===false,still=settings.motion===false;

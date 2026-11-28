@@ -52,7 +52,7 @@ const labels = {
   'Latest field report': '最新战报', 'Field radio': '战地电台', 'Log': '战报', 'Order history': '指令记录',
   'Command sidebar': '指挥面板', 'Close production': '关闭生产面板',
   'Radar. Tap to center the zoomed battlefield.': '雷达。轻点可将地图视野移至该处。',
-  'End turn': '结束回合', 'Begin turn': '开始回合', 'Turn handoff': '交接指挥',
+  'Pass turn': '跳过回合',
   'Match result': '对局结果', 'Match drawn': '平局', 'Operation complete': '行动结束',
   'Review battlefield': '查看战场', 'Return to field': '返回战场', 'Resume': '继续游戏',
   'Music volume': '音乐音量', 'Effects volume': '音效音量', 'Show hex grid': '显示六角网格',
@@ -117,8 +117,7 @@ const messages = {
   'This facility needs more power.': '这座设施供电不足。',
   'This piece has already activated this turn.': '本单位本回合已行动。',
   'Choose one action. Build, train a unit, or give a field order.': '本回合可行动一次。选择建造、生产部队，或下达作战指令。',
-  'Action spent. End your turn.': '本回合的行动已用完。请点击“结束回合”。',
-  'End your turn.': '请点击“结束回合”。',
+  'Action already spent.': '本回合的行动已用完。',
   'Bring a Signal Lab online.': '需要一座供电正常的信号实验室。',
   'Production is unavailable.': '当前无法生产。',
   'You used this turn’s requisition.': '本回合的生产指令已用完。',
@@ -144,7 +143,7 @@ const messages = {
   'Choose a land or bridge hex within range 6. The opponent gets a turn to leave the area.': '选择 6 格内的陆地或桥梁。对手有一个回合可以撤离。',
   'Next Soviet upkeep deals 3 to every mobile piece in the marked area, including your own.': '苏军下回合开始时，标记范围内所有机动单位受到 3 点伤害，己方部队也会被击中。',
   'This turn has already begun.': '本回合已经开始。',
-  'Begin the next turn to issue orders.': '请先开始下一回合，再下达指令。',
+  'Orders are unavailable.': '当前无法下达指令。',
   'Unknown order.': '无法识别此指令。', 'Order could not be issued.': '未能下达指令。',
   'No field orders were issued.': '本回合未下达行动指令。',
   'Orders and income will appear here as the match progresses.': '后续的行动与收入会记录在这里。',
@@ -153,7 +152,7 @@ const messages = {
   'More bridge relays held at the round limit.': '达到回合上限，控制桥头据点较多的一方获胜。',
   'Relay count tied. Remaining HQ health decided the match.': '双方控制的据点数相同，建造场剩余耐久较高的一方获胜。',
   'The marked surge fizzled. Its array or lab was offline.': '脉冲未能释放，阵列或信号实验室已断电。',
-  'The match saves on this device after every confirmed order and handoff.': '每次确认指令或交接回合后，对局都会自动保存在此设备上。',
+  'Each order or pass saves the match on this device.': '每次确认指令或跳过回合后，对局都会自动保存在此设备上。',
   'This browser cannot save the match. Keep this tab open to finish it.': '此浏览器无法保存对局，请保持此标签页开启。',
   'A new battle replaces the saved match on this device. Choose which commander opens.': '新对局将覆盖此设备上的存档。请选择先手阵营。',
   'The match was updated in another tab. Review the current board.': '另一标签页已更新对局，请查看最新战况。',
@@ -167,7 +166,7 @@ const manual = {
   'From round two, collect 20 plus 30 per online refinery. Build a refinery on ore next to friendly infantry. Power plants add 6 capacity. Low power pauses lower-priority facilities.': '从第 2 轮起，每轮获得 20 基础资金，每座有电的精炼厂再提供 30。让步兵靠近矿脉，即可在矿脉上建厂。每座发电厂提供 6 点电力，电力不足时优先级较低的设施会停运。',
   'A normal step costs 1. Groves cost 2 and protect infantry from 1 direct-fire damage. Units and water block movement. Fire range counts hex edges and ignores intervening pieces.': '通常每格消耗 1 点移动力，树林消耗 2 点。林中的步兵受到直射攻击时减免 1 点伤害。深水和其他单位会阻挡移动。射程按六角格距离计算，中间的单位不会阻挡射击。',
   'An online Signal Lab supports the Vector Gate or Surge Array. At 3 charge, the Gate relocates a ready unit. The Surge marks a seven-hex blast for the next Soviet upkeep, including friendly units.': '信号实验室供电正常时，专属装置可以蓄能。蓄满 3 点后，盟军可用矢量传送门传送一个尚未行动的单位；苏军可标记脉冲区域，下回合开始时打击七格内的敌我机动单位。',
-  'End Turn hands the board to the other commander. Options can rotate their view, change audio, or show coordinates. Zoom in and drag the field or use the radar to pan.': '点“结束回合”将指挥权交给对方。设置中可以开启对坐视角、调整音量或显示坐标。放大后可拖动地图，也可点击雷达定位。'
+  'The map centers on the next commander’s base after each turn. Turn on seat rotation in Options for face-to-face play. The field radio log keeps a record of orders.': '每个回合结束后，地图会自动移到下一位玩家的基地。面对面游玩时，可在设置中开启对坐视角。想回顾之前的指令，可查看战地电台日志。'
 };
 
 function normalize(text) {

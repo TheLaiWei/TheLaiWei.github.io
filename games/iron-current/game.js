@@ -1,6 +1,6 @@
-import {ROUND_LIMIT,ACTIONS_PER_TURN,ACTION_SPENT,map,cells,sides,opposite,headquartersCell,relays,terrainNames,structures,units,spec,pieceName,mobile,at,byId,grid,fresh,usableSave,importLegacy,paths,damage,canHit,activationReason,placements,producers,purchaseReason,gateUnits,landings,distance,relaySide,apply} from './rules.js?v=4';
-import {loadArt,Battlefield} from './battlefield.js?v=4';
-import {zh} from './zh.js?v=4';
+import {ROUND_LIMIT,ACTIONS_PER_TURN,map,cells,sides,opposite,headquartersCell,relays,terrainNames,structures,units,spec,pieceName,mobile,at,byId,grid,fresh,usableSave,importLegacy,resumeTurn,paths,damage,canHit,activationReason,placements,producers,purchaseReason,gateUnits,landings,distance,relaySide,apply} from './rules.js?v=5';
+import {loadArt,Battlefield} from './battlefield.js?v=5';
+import {zh} from './zh.js?v=5';
 import {CommandAudio} from './audio.js';
 
 const $=id=>document.getElementById(id);
@@ -10,11 +10,11 @@ function read(key){try{const v=localStorage.getItem(key);return v?JSON.parse(v):
 function write(key,val){try{localStorage.setItem(key,JSON.stringify(val));return true;}catch{canSave=false;return false;}}
 function match(first){const n=fresh(first);n.id=globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2);return n;}
 const toss=()=>Math.random()<.5?'US':'SU';
-let g=read(SAVE);
-if(!usableSave(g)){
-  g=importLegacy(read('laiwei.iron-current.match.v2'))||importLegacy(read('laiwei.iron-current.match.v1'))||match(toss());
-  write(SAVE,g);
-}
+const saved=read(SAVE);
+const previous=usableSave(saved)?saved:
+  importLegacy(read('laiwei.iron-current.match.v2'))||importLegacy(read('laiwei.iron-current.match.v1'))||match(toss());
+let g=resumeTurn(previous);
+if(g!==saved)write(SAVE,g);
 const defaults={music:28,effects:65,grid:true,coords:false,motion:!matchMedia('(prefers-reduced-motion: reduce)').matches,flashes:!matchMedia('(prefers-reduced-motion: reduce)').matches,faceToFace:false};
 const settings={...defaults,...(read(PREF)||{})};
 const requestedLanguage=new URL(location.href).searchParams.get('lang');
@@ -64,7 +64,7 @@ function cancel(){
   paint();
 }
 function pick(cell){
-  if(working||modal||g.phase==='handoff')return;
+  if(working||modal)return;
   const occupant=at(g,cell),piece=byId(g,action.id);audio.sound('select');
   if(g.phase==='over'){if(occupant)inspect(occupant,false);else action={mode:'terrain',cell};paint();return;}
   const repeatsDestination=action.to===cell && !action.target;
@@ -140,7 +140,7 @@ function jobStatus(p,power){
 function forecast(){
   const a=action,p=byId(g,a.id),s=p&&spec(p.side,p.kind),enemy=byId(g,a.target);
   const view={selected:p?.id,target:enemy?.id,moves:[],sites:[],targets:[],to:a.to};
-  let title='Switchyard Crossing',kicker=sides[g.side]+' field command',body=g.orders?'Choose one action. Build, train a unit, or give a field order.':ACTION_SPENT,label='Confirm order',portrait=[g.side,'hq'];
+  let title='Switchyard Crossing',kicker=sides[g.side]+' field command',body='Choose one action. Build, train a unit, or give a field order.',label='Confirm order',portrait=[g.side,'hq'];
   switch(a.mode){
     case 'field':{
       const routes=paths(g,p),from=a.to||p.cell;view.moves=[...routes.keys()].filter(k=>k!==p.cell);
@@ -242,8 +242,8 @@ function paintProduction(power){
 }
 function paint(){
   if(!art)return;
-  const root=$('console'),spent=g.phase==='play' && g.orders===0;
-  root.dataset.side=g.side;root.classList.toggle('reversed',settings.faceToFace && g.side!==g.first);root.classList.toggle('action-spent',spent);
+  const root=$('console');
+  root.dataset.side=g.side;root.classList.toggle('reversed',settings.faceToFace && g.side!==g.first);
   $('round').textContent=T('Round '+String(g.round).padStart(2,'0')+' / '+ROUND_LIMIT);$('active-side').textContent=T(sides[g.side]+' turn');$('side-name').textContent=T(sides[g.side]+' command');$('credits').textContent=String(g.cash[g.side]).padStart(6,'0');
   $('pips').textContent=g.orders+' / '+ACTIONS_PER_TURN;
   const power=grid(g,g.side);$('power-text').textContent=power.demand+' / '+power.supply+(power.demand>power.supply?' · '+T('LOW'):'');
@@ -270,10 +270,10 @@ function paint(){
   if(refresh){paintProduction(power);panelState=g;panelLanguage=settings.lang;}
   const f=forecast();$('readout-title').textContent=T(f.title);$('readout-text').textContent=T(f.body);$('readout-kicker').textContent=T(f.kicker);
   const portraitKey=f.portrait.join('-');if($('portrait').dataset.key!==portraitKey){$('portrait').replaceChildren(asset(...f.portrait));$('portrait').dataset.key=portraitKey;}
-  $('confirm').textContent=T(working?'Resolving':spent?'Action spent':f.label);$('confirm').disabled=!nextCmd()||working;
+  $('confirm').textContent=T(working?'Resolving':f.label);$('confirm').disabled=working||!nextCmd();
   $('cancel').hidden=action.mode==='idle'||g.phase!=='play';$('cancel').disabled=working;
   const last=g.history.at(-1);$('latest').textContent=T(last?('R'+last.round+' '+last.side+' · '+last.msg):'Secure both bridges with infantry or destroy the enemy construction yard.');
-  const endLabel=g.phase==='over'?'Match result':g.phase==='handoff'?'Begin turn':'End turn';
+  const endLabel=g.phase==='over'?'Match result':'Pass turn';
   for(const id of ['end','mobile-end']){$(id).textContent=T(endLabel);$(id).disabled=working;}
   field?.update(f.view);
 }
@@ -294,17 +294,6 @@ function dialog(title,kicker,body,actions,locked=false,redraw=null){
   requestAnimationFrame(()=>{if(modal)$('dialog').focus({preventScroll:true});});
 }
 const para=s=>el('p','',s);
-function logLines(items){
-  if(!items.length)return [para('No field orders were issued.')];
-  const list=el('ul');for(const s of items){list.append(el('li','',s));}return [list];
-}
-function handoff(){
-  const next=opposite(g.side),round=g.round+(next===g.first?1:0);
-  dialog('Pass to '+sides[next]+' command','Turn handoff',[
-    para(sides[g.side]+' command has ended its turn. '+sides[next]+' command begins round '+round+'.'),
-    ...logLines(g.turnLog),para('Relay hold streak · Allies '+g.streak.US+' / 2 · Soviets '+g.streak.SU+' / 2.')
-  ],[['Begin '+sides[next]+' turn',()=>execute({type:'begin'}),true]],true,handoff);
-}
 function showResult(){
   dialog(g.winner?sides[g.winner]+' victory':'Match drawn','Operation complete',[para(g.ending),para('Round '+g.round+' · North bridge '+(sides[relaySide(g,relays[0])]||'neutral')+' · South bridge '+(sides[relaySide(g,relays[1])]||'neutral')+'.')],[
     ['Rematch · '+sides[opposite(g.first)]+' first',()=>resetMatch(opposite(g.first)),true],['Review battlefield',()=>closeDialog(true)]],true,showResult);
@@ -318,14 +307,14 @@ function briefing(){
   const h=el('div','manual-grid');
   for(const [title,body] of [
     ['Win the crossing',L('Destroy the enemy construction yard, or hold J5 and J9 with infantry at two consecutive round ends. You can cross at the J1 and J13 fords. At the end of round '+ROUND_LIMIT+', whoever holds more bridges wins. If tied, compare HQ health.','摧毁敌方建造场，或用步兵连续两轮在结算时控制 J5 和 J9，即可获胜。也可从 J1 和 J13 的浅滩渡河。第 '+ROUND_LIMIT+' 轮结束时，先比较双方控制的桥梁数，再比较建造场剩余耐久。')],
-    ['Your turn',L('Each player gets one action per round. Start one building, order one unit, or activate one unit, defense or device. Income, construction progress and automatic deployment are free. End Turn passes control to the other player.','每轮双方各有一次行动。可开工一座建筑、生产一个单位，或指挥一个单位、防御设施或特殊装置。收入结算、施工进度和自动部署都不消耗行动。点击“结束回合”交给对方。')],
+    ['Your turn',L('Each player gets one action per round. Build a structure, train a unit, or command a unit, defense or device. Confirming the order passes play to your opponent automatically. Choose Pass turn to skip your action.','每轮双方各有一次行动。可建造一座建筑、生产一个单位，或指挥一个单位、防御设施或特殊装置。确认指令后自动轮到对方。想保留阵位、暂不行动时，可点“跳过回合”。')],
     ['Move and fire',L('Select one unit, then a destination or an enemy. A mobile unit can move and fire in the same order if its weapon allows it. Tap the target again or use Confirm to spend your action.','选中一个单位，再选择目的地或敌方目标。武器允许时，可以在同一次行动中移动并开火。再次轻点目标或点击确认才会消耗行动。')],
     ['Build a base',L('Start with 220 credits. Choose a building and a highlighted site. You can build another copy on a later turn, even while the first is under construction. All sites advance together at the start of your turn. Tap a production row to locate it.','开局有 220 资金。选择建筑，再点高亮格子。以后回合可以继续建造同类建筑，无需等待上一座完工。每次己方回合开始时，所有工地一同推进。轻点生产列表可定位工地。')],
     ['Train and deploy',L('Each powered barracks or factory trains one unit at a time. Finished units deploy to the nearest open ground within three hexes and can pass through friendly positions. A blocked unit waits in reserve while the factory can train again. On your turn, clear an exit at any matching facility to deploy the unit automatically.','每座有电的兵营或战车工厂都能独立生产一个单位。部队完工后可穿过己方阵地，自动部署到三格内最近的空地。出口全部被堵时，部队进入后备队，工厂可继续生产。在己方回合为任一同类设施腾出出口，后备部队便会自动出场。')],
     ['Ore and power','From round two, collect 20 plus 30 per online refinery. Build a refinery on ore next to friendly infantry. Power plants add 6 capacity. Low power pauses lower-priority facilities.'],
     ['Hex terrain','A normal step costs 1. Groves cost 2 and protect infantry from 1 direct-fire damage. Units and water block movement. Fire range counts hex edges and ignores intervening pieces.'],
     ['Signature devices','An online Signal Lab supports the Vector Gate or Surge Array. At 3 charge, the Gate relocates a ready unit. The Surge marks a seven-hex blast for the next Soviet upkeep, including friendly units.'],
-    ['Share the screen','End Turn hands the board to the other commander. Options can rotate their view, change audio, or show coordinates. Zoom in and drag the field or use the radar to pan.']
+    ['Share the screen','The map centers on the next commander’s base after each turn. Turn on seat rotation in Options for face-to-face play. The field radio log keeps a record of orders.']
   ]){const box=el('div');box.append(el('h3','',title),para(body));h.append(box);}
   dialog('Field manual','Switchyard Crossing',[h],[['Return to field',()=>closeDialog(),true]],false,briefing);
 }
@@ -337,7 +326,7 @@ function settingsPanel(){
     input.oninput=()=>{settings[key]=input.type==='range'?Number(input.value):input.checked;write(PREF,settings);audio.update(settings);paint();};
     l.append(cap,input);lines.push(l);
   }
-  lines.push(para(canSave?'The match saves on this device after every confirmed order and handoff.':'This browser cannot save the match. Keep this tab open to finish it.'));
+  lines.push(para(canSave?'Each order or pass saves the match on this device.':'This browser cannot save the match. Keep this tab open to finish it.'));
   const back=el('a','switch','Projects / Fun');back.href='/projects/#fun';
   dialog('Options','Command console',lines,[['Resume',()=>closeDialog(),true],['Field manual',briefing],['New match',newMatchDialog]],false,settingsPanel);$('dialog-actions').append(back);
 }
@@ -349,9 +338,28 @@ function resetMatch(first){
   if(field){field.timeline=null;field.openSector(headquartersCell(g));}
   paint();msg(sides[first]+' command has the first turn.');
 }
+function enterTurn(next,upkeepEvents=[]){
+  g=next;working=false;action={mode:'idle'};
+  clearTimeout(toastTimer);$('toast').hidden=true;
+  closeDialog(true);document.querySelector('.rail').classList.remove('open');
+  if(!field)return;
+  field.timeline=null;
+  if(g.phase==='play'){
+    const hq=headquartersCell(g);
+    const focus=document.activeElement;
+    const keyboard=focus?.matches(':focus-visible') && ($('hexes').contains(focus)||['end','mobile-end','confirm'].includes(focus.id));
+    field.centerCell(hq);
+    if(keyboard)field.focusCell(hq,true);
+  }
+  paint();
+  if(g.phase==='over')showResult();
+  else if(upkeepEvents.length)field.play(upkeepEvents,k=>audio.sound(k));
+}
 function sync(next){
-  if(!usableSave(next))return;g=next;working=false;if(field){field.timeline=null;field.centerCell(headquartersCell(g));}action={mode:'idle'};closeDialog(true);paint();
-  if(g.phase==='handoff')handoff();if(g.phase==='over')showResult();
+  if(!usableSave(next))return;
+  const ready=resumeTurn(next);
+  if(ready!==next)write(SAVE,ready);
+  enterTurn(ready);
 }
 async function execute(cmd){
   if(!field||!cmd||working)return;
@@ -359,25 +367,33 @@ async function execute(cmd){
   const commit=()=>{
     const current=read(SAVE);
     if(usableSave(current)&&(current.id!==baseId||current.revision!==baseRevision)){sync(current);msg('The match was updated in another tab. Review the current board.');return;}
-    const {state,events}=apply(g,cmd);closeDialog(true);field.timeline=null;g=state;write(SAVE,g);working=false;action={mode:'idle'};
-    if(cmd.type==='field'){const p=byId(g,cmd.id);if(p)inspect(p,false);}
-    if(cmd.type==='buy')inspect(cmd.cell?at(g,cmd.cell):byId(g,cmd.id),false);
-    if(cmd.type==='begin')field.centerCell(headquartersCell(g));
-    paint();
+    const {state,outgoing,events,upkeepEvents}=apply(g,cmd);
+    write(SAVE,state);
+    closeDialog(true);field.timeline=null;action={mode:'idle'};
     if(cmd.type==='end')audio.sound('end');
-    if(events.length)field.play(events,k=>audio.sound(k));
-    if(g.phase==='handoff')handoff();else if(g.phase==='over')showResult();
+    if(events.length && settings.motion && !document.hidden){
+      g=outgoing;
+      field.update({});
+      field.play(events,k=>audio.sound(k),()=>enterTurn(state,upkeepEvents));
+    }else{
+      if(events.length)audio.sound(events[0].style||events[0].type);
+      enterTurn(state,upkeepEvents);
+    }
   };
   try{if(navigator.locks?.request)await navigator.locks.request(SAVE,commit);else commit();}
   catch(e){working=false;paint();msg(e.message||'Order could not be issued.');}
 }
-function endTurn(){if(working)return;if(g.phase==='over')showResult();else if(g.phase==='handoff')handoff();else execute({type:'end'});}
-$('confirm').onclick=()=>execute(nextCmd());$('cancel').onclick=cancel;$('end').onclick=endTurn;$('mobile-end').onclick=endTurn;
+function passTurn(event){if(working||event.detail>1)return;if(g.phase==='over')showResult();else execute({type:'end'});}
+$('confirm').onclick=()=>execute(nextCmd());$('cancel').onclick=cancel;$('end').onclick=passTurn;$('mobile-end').onclick=passTurn;
 $('options').onclick=()=>{if(!working)settingsPanel();};$('open-log').onclick=()=>{if(!working)report();};
 $('dialog-x').onclick=()=>closeDialog();$('shade').onclick=e=>{if(e.target===$('shade'))closeDialog();};
 $('show-production').onclick=()=>document.querySelector('.rail').classList.toggle('open');
 $('hide-production').onclick=()=>document.querySelector('.rail').classList.remove('open');
-window.addEventListener('storage',e=>{if(e.key===SAVE && e.newValue){try{const n=JSON.parse(e.newValue);if(n.id!==g.id||n.revision!==g.revision)sync(n);}catch{}}});
+window.addEventListener('storage',e=>{
+  if(e.key!==SAVE||!e.newValue)return;
+  const n=read(SAVE);
+  if(usableSave(n)&&(n.id!==g.id||n.revision!==g.revision))sync(n);
+});
 document.addEventListener('keydown',e=>{
   if(modal){
     if(e.key==='Escape'){e.preventDefault();closeDialog();}
@@ -403,8 +419,7 @@ async function openBattlefield(){
     $('loadmsg').hidden=true;
     field.openSector(headquartersCell(g));
     paint();
-    if(g.phase==='handoff')handoff();
-    else if(g.phase==='over')showResult();
+    if(g.phase==='over')showResult();
   }catch(error){
     $('loadmsg').textContent=T('The battlefield could not load. Reload this page to reconnect.');
     console.error(error);
