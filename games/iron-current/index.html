@@ -7,7 +7,7 @@
 <meta name="description" content="Command the Allies or Soviets in a two-player, shared-screen hex tactics game on Switchyard Crossing.">
 <title>Iron Current · Switchyard Crossing | Lai Wei</title>
 <link rel="icon" type="image/png" sizes="64x64" href="icon.png">
-<link rel="stylesheet" href="game.css?v=4">
+<link rel="stylesheet" href="game.css?v=5">
 </head>
 <body>
 <main id="console" data-side="US">
@@ -18,7 +18,7 @@
   </header>
   <section class="map-column" aria-label="Battlefield and orders">
     <div class="mapbar metal">
-      <div class="turn-id"><i aria-hidden="true"></i><b id="active-side">Allied turn</b></div>
+      <div class="turn-id"><i aria-hidden="true"></i><b id="active-side" role="status" aria-atomic="true">Allied turn</b></div>
       <div class="bridges" id="bridges" aria-label="Relay control"></div>
       <div class="camera" aria-label="Map zoom"><button id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button><button id="fit" title="Fit the full map" data-i18n>Fit</button><button id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button></div>
       <button class="mobile-production switch" id="show-production" data-i18n>Production</button>
@@ -30,7 +30,7 @@
       </div>
       <div id="loadmsg" role="status" data-i18n>Opening Switchyard Crossing…</div>
     </div>
-    <div class="radio-line" aria-label="Latest field report"><span data-i18n>Field radio</span><div id="latest" aria-live="polite">Secure both bridge relays with infantry.</div><button id="open-log" class="text-button" data-i18n>Log</button><button class="switch mobile-end" id="mobile-end" disabled>End turn</button></div>
+    <div class="radio-line" aria-label="Latest field report"><span data-i18n>Field radio</span><div id="latest" aria-live="polite">Secure both bridge relays with infantry.</div><button id="open-log" class="text-button" data-i18n>Log</button><button class="switch mobile-end" id="mobile-end" disabled>Pass turn</button></div>
     <section class="inspector metal" aria-label="Current order">
       <div class="portrait inset" id="portrait"></div>
       <div class="readout inset"><div id="readout-kicker">Field command</div><h2 id="readout-title">Switchyard Crossing</h2><p id="readout-text" data-i18n>Choose one action. Build, train a unit, or give a field order.</p></div>
@@ -44,7 +44,7 @@
     <div class="pool-head"><h2 data-i18n>Structures</h2><h2 data-i18n>Units</h2></div>
     <div class="pool" id="production"><div id="build-list" class="catalog"></div><div id="unit-list" class="catalog"></div></div>
     <div class="queue inset" id="queue" role="region" aria-label="Production status"></div>
-    <div class="rail-foot"><div class="req-line"><span data-i18n>Build sites</span><b id="req">0</b></div><button class="switch turn" id="end" disabled>End turn</button></div>
+    <div class="rail-foot"><div class="req-line"><span data-i18n>Build sites</span><b id="req">0</b></div><button class="switch turn" id="end" disabled>Pass turn</button></div>
   </aside>
   <div class="shade" id="shade" hidden><section id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" tabindex="-1" class="dialog metal">
     <div class="dialog-in"><div class="dialog-top"><span id="dialog-kicker">Command</span><div class="dialog-tools"><button class="switch language" id="dialog-language" lang="zh-CN">中文</button><button id="dialog-x" class="switch" aria-label="Close dialog" data-i18n>Close</button></div></div><h2 id="dialog-title"></h2><div id="dialog-body"></div><div id="dialog-actions"></div></div>
@@ -52,6 +52,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 </main>
 <noscript>Enable JavaScript to play Iron Current. 请启用 JavaScript 以游玩《钢铁洪流》。</noscript>
-<script type="module" src="game.js?v=4"></script>
+<script type="module" src="game.js?v=5"></script>
 </body>
 </html>
